@@ -9,8 +9,8 @@ public class SendEmail {
     public static void Send(String email, String code) {
 
         String to = email;
-        String from = "outzjust@gmail.com";
-        String password = "cwbi mcsd raaj cgjd"; // senha de app do Gmail
+        String from = "XXXXXX@gmail.com";
+        String password = "XXXX XXXX XXXX XXXX"; // senha de app do Gmail
 
         Properties props = new Properties();
         props.put("mail.smtp.auth", "true");
@@ -56,3 +56,4 @@ public class SendEmail {
         }
     }
 }
+
