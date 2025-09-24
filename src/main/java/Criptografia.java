@@ -7,7 +7,7 @@ import java.util.Base64;
 
 public class Criptografia {
 
-     // Gera hash SHA-512 da senha
+     // Gera hash SHA-512 da senha (alterar para uma mais moderna)
     public static String hashPassword(String senha, String salt) {
     try {
         String senhaComSalt = salt + senha; // adiciona o salt
@@ -33,3 +33,4 @@ public class Criptografia {
 
 
 }
+
