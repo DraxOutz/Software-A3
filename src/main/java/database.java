@@ -12,7 +12,7 @@ public class database {
     
     private static final String URL = "jdbc:mysql://localhost:3306/users_db";
     private static final String USER = "root";           // seu usuário
-    private static final String PASSWORD = "XXXXXX!"; // a senha que você configurou
+    private static final String PASSWORD = "BatatinhaFrita123!"; // a senha que você configurou
 
      public static Connection getConnection() throws SQLException {
         return DriverManager.getConnection(URL, USER, PASSWORD);
@@ -38,13 +38,34 @@ public class database {
         return null; // usuário não encontrado
     }
 
+    public static String getToken(String email) {
+        String sql = "SELECT remember_token FROM usuarios WHERE email = ?";
+
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, email);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                return rs.getString("remember_token"); // pega a senha do banco
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return null; // usuário não encontrado
+    }
+
     public static boolean criarUsuario(String email, String senha) {
         // Gera salt e hash
         String salt = Criptografia.gerarSalt();
         String hash = Criptografia.hashPassword(senha, salt);
+        LocalDateTime expira = LocalDateTime.now().plusDays(30);
 
-        String sql = "INSERT INTO usuarios (email, senha_hash, salt, tentativas_login, ultima_tentativa) " +
-                     "VALUES (?, ?, ?, 5, NOW())";
+        String sql = "INSERT INTO usuarios (email, senha_hash, salt, tentativas_login, ultima_tentativa, remember_token, token_expira_em) " +
+                     "VALUES (?, ?, ?, 5, NOW(),?,?)";
 
         try (Connection conn = database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -52,6 +73,9 @@ public class database {
             stmt.setString(1, email);
             stmt.setString(2, hash);
             stmt.setString(3, salt);
+            String token = AuthenticationService.GerarToken(); 
+              stmt.setString(4, token);
+    stmt.setTimestamp(5, Timestamp.valueOf(expira));
 
             int linhas = stmt.executeUpdate();
             return linhas > 0; // se inseriu, retorna true
@@ -193,5 +217,4 @@ public static void resetarTentativas(String email) {
     }
 
 }
-
 
