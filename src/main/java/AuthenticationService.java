@@ -2,12 +2,13 @@ package main.java;
 
 
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
+import java.security.SecureRandom;
 import java.time.Duration;
-
+import java.util.prefs.Preferences;
 
 
 
@@ -67,19 +68,67 @@ public class AuthenticationService {
      *         "Sucesso" - se e-mail e senha forem válidos
      */
 
-     static long minutosRestantes;
-     static long lastRegisterAttempt = 0; 
-     static Boolean Verified = false;
-     static String Code;
-     static String LoginOuRegister;
+    private static long minutosRestantes;
+     private static long lastRegisterAttempt = 0; 
+    private static Boolean Verified = false;
+    private static String Code;
+    private static String LoginOuRegister;
      static boolean Logged = false;
-     static LocalDateTime CodeGeneratedTime;
+    private static LocalDateTime CodeGeneratedTime;
+    private static Boolean RememberMe;
+    static public String TokenVerifiy;
 
-     static String emaill,senha;
+    private static String emaill,senha;
 
+    private static final SecureRandom random = new SecureRandom();
+    private static final Preferences prefs = Preferences.userRoot().node("meuapp");
+
+    public static String ResetPasswordEvent(String email){
+         String Result = "Nulo";
+
+        return Result;
+    }
     
+ 
+    public static Boolean HasTokenSaved() {
+        boolean Vlr = false;
+
+        String email = prefs.get("remember_email", null);
+
+        if (email != null) {
+            
+            String salt = database.getUserSalt(email);
+
+            String Token = prefs.get("remember_token", null);
+            Token = Criptografia.hashPassword(Token, salt);
+
+            String TokenArmazenado = database.getToken(email);
+            TokenArmazenado = Criptografia.hashPassword(TokenArmazenado, salt);
+//
+         if (Criptografia.verifyPassword(Token, TokenArmazenado)) {
+              LoginOuRegister = "Login";
+              Logged = true;
+              Vlr = true;
+              Main.print("O úsuario possui token salvo.");
+         };
+//
+        };
+
+ return Vlr;
+    };
+
 
      public static void SendCode() {
+
+
+        if (CodeGeneratedTime != null) {
+        Duration duration = Duration.between(CodeGeneratedTime, LocalDateTime.now());
+        if (duration.toMinutes() < 5) {
+            Main.print("Código já gerado recentemente. Aguarde " + (5 - duration.toMinutes()) + " minutos.");
+            return; // não gera novo código
+        }
+    }
+
     // Gera um código alfanumérico de 8 caracteres
     String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     StringBuilder sb = new StringBuilder();
@@ -87,6 +136,7 @@ public class AuthenticationService {
     for (int i = 0; i < 8; i++) {
         sb.append(chars.charAt(random.nextInt(chars.length())));
     }
+    
     Code = sb.toString();
 
     // Marca o horário de geração
@@ -98,6 +148,18 @@ public class AuthenticationService {
     SendEmail.Send(emaill, Code);
 }
 
+    public static String GerarToken() {
+           
+        byte[] bytes = new byte[32]; // 256 bits
+        random.nextBytes(bytes);
+
+        String Token =  Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        TokenVerifiy = Token;
+
+
+
+        return Token;
+    }
 
 public static String VerifyCode(String codigoDigitado) {
     if (codigoDigitado == null || codigoDigitado.isEmpty()) {
@@ -111,6 +173,12 @@ public static String VerifyCode(String codigoDigitado) {
         return "Expirado"; // código expirou
     }
 
+    if (  LoginOuRegister == "Login") {
+        int Tentativas = database.getUserTrys(emaill);
+ if (Tentativas <=0) {
+     return "LoginBlocked";}
+    };
+
     // Compara o código digitado com o gerado
     if (codigoDigitado.equals(Code)) {
         Verified = true;
@@ -121,10 +189,21 @@ public static String VerifyCode(String codigoDigitado) {
         } else {
             Logged = true;
             Main.print("Usuario logado no registro.");
+            // 
+            if (RememberMe == true) {
+             //
+                 prefs.put("remember_email", emaill);
+                 prefs.put("remember_token", TokenVerifiy);
+             //
+            };
+            //
         }
 
         return "Sucesso"; // Código correto
     } else {
+        if (  LoginOuRegister == "Login") {
+              database.decrementarTentativa(emaill);
+        }
         return "Incorreto"; // Código errado
     }
 }
@@ -244,6 +323,7 @@ public static String VerifyCode(String codigoDigitado) {
             Result = "Sucesso"; // login bem-sucedido
              LoginOuRegister = "Login";
                emaill = email; 
+               RememberMe = Check;
              SendCode();
               InterfaceUI.Panel2FA(email);
             } else { 
