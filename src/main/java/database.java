@@ -12,7 +12,7 @@ public class database {
     
     private static final String URL = "jdbc:mysql://localhost:3306/users_db";
     private static final String USER = "root";           // seu usuário
-    private static final String PASSWORD = "BatatinhaFrita123!"; // a senha que você configurou
+    private static final String PASSWORD = "X!"; // a senha que você configurou
 
      public static Connection getConnection() throws SQLException {
         return DriverManager.getConnection(URL, USER, PASSWORD);
@@ -217,4 +217,5 @@ public static void resetarTentativas(String email) {
     }
 
 }
+
 
