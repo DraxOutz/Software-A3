@@ -12,7 +12,7 @@ public class SendEmail {
     public static void Send(String email, String code) {
 
         String to = email;
-        String from = "outzjust@gmail.com";
+        String from = "X@gmail.com";
         String password = "cwbi mcsd raaj cgjd"; // senha de app do Gmail
 
         Properties props = new Properties();
@@ -86,3 +86,4 @@ public class SendEmail {
         }
     }
 }
+
