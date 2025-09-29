@@ -2,6 +2,9 @@ package main.java;
 
 import javax.mail.*;
 import javax.mail.internet.*;
+import java.net.InetAddress;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Properties;
 
 public class SendEmail {
@@ -9,8 +12,8 @@ public class SendEmail {
     public static void Send(String email, String code) {
 
         String to = email;
-        String from = "XXXXXX@gmail.com";
-        String password = "XXXX XXXX XXXX XXXX"; // senha de app do Gmail
+        String from = "outzjust@gmail.com";
+        String password = "cwbi mcsd raaj cgjd"; // senha de app do Gmail
 
         Properties props = new Properties();
         props.put("mail.smtp.auth", "true");
@@ -25,27 +28,54 @@ public class SendEmail {
         });
 
         try {
-            Message message = new MimeMessage(session);
-            message.setFrom(new InternetAddress(from, Main.GetProgramName())); // nome profissional
-            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to));
-            message.setSubject("Código de Verificação - "+Main.GetProgramName());
+            // Pegando IP local
+            InetAddress localHost = InetAddress.getLocalHost();
+            String ip = localHost.getHostAddress();
+
+            // Pegando info do sistema
+            String os = System.getProperty("os.name") + " " + System.getProperty("os.version");
+            String user = System.getProperty("user.name");
+            String city = "São Paulo"; // pode automatizar com API externa se quiser o IP público
+
+            // Horário atual
+            LocalDateTime now = LocalDateTime.now();
+            String formattedTime = now.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
 
             // Corpo do email em HTML
             String htmlMessage = "<html>" +
                     "<body style='font-family:Arial,sans-serif; color:#333;'>" +
-                    "<h2>"+Main.GetProgramName()+"</h2>" +
-                    "<p>Olá,</p>" +
+                    "<h2>" + Main.GetProgramName() + "</h2>" +
+                    "<p>Olá " + user + ",</p>" +
                     "<p>Recebemos uma solicitação de verificação para sua conta.</p>" +
                     "<p>Use o código abaixo para concluir o processo:</p>" +
                     "<h1 style='color:#6200EE;'>" + code + "</h1>" +
                     "<p><strong>Atenção:</strong> este código é válido apenas por <strong>30 minutos</strong>. Após esse período, ele será invalidado.</p>" +
                     "<p>Se você não solicitou este código, por favor ignore este email.</p>" +
+                    "<hr>" +
+                    "<p>Informações do dispositivo:</p>" +
+                    "<ul>" +
+                    "<li>IP Local: " + ip + "</li>" +
+                    "<li>Cidade: " + city + "</li>" +
+                    "<li>Dispositivo/OS: " + os + "</li>" +
+                    "<li>Horário: " + formattedTime + "</li>" +
+                    "</ul>" +
                     "<br>" +
-                    "<p>Atenciosamente,<br><strong>Equipe "+Main.GetProgramName()+"</strong></p>" +
+                    "<p>Atenciosamente,<br><strong>Equipe " + Main.GetProgramName() + "</strong></p>" +
                     "</body>" +
                     "</html>";
 
-            message.setContent(htmlMessage, "text/html; charset=utf-8");
+            // Usando MimeMultipart para evitar truncamento do email
+            MimeBodyPart mimeBodyPart = new MimeBodyPart();
+            mimeBodyPart.setContent(htmlMessage, "text/html; charset=utf-8");
+
+            MimeMultipart multipart = new MimeMultipart();
+            multipart.addBodyPart(mimeBodyPart);
+
+            Message message = new MimeMessage(session);
+            message.setFrom(new InternetAddress(from, Main.GetProgramName()));
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to));
+            message.setSubject("Código de Verificação - " + Main.GetProgramName());
+            message.setContent(multipart);
 
             Transport.send(message);
 
@@ -56,4 +86,3 @@ public class SendEmail {
         }
     }
 }
-
