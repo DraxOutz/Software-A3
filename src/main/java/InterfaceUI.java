@@ -28,6 +28,10 @@ public class InterfaceUI {
         frame.setVisible(true);
 
         CreateLogin(frame);
+
+       if (AuthenticationService.HasTokenSaved() == true ){
+        LoginPanel.setVisible(false);
+       };
     }
 
     static JPanel LoginPanel;
@@ -117,25 +121,43 @@ public class InterfaceUI {
     backgroundPanel.repaint();
 
     // Eventos
-    confirmButton.addActionListener(e -> {
-        String codigoDigitado = codeField.getText();
-       String Result = AuthenticationService.VerifyCode(codigoDigitado);
 
-         if (!Result.equals("Sucesso")) {
-             Map<String, String> mensagens = new HashMap<>();
+    cancelButton.addActionListener(e -> {
+    if (LoginPanel != null) {
+        LoginPanel.setVisible(true); }
+    FA2.setVisible(false);
+});
 
-             mensagens.put("Incorreto", "O código informado está incorreto");
-             mensagens.put("Invalido", "Formato do código é inválido");
-             mensagens.put("Nulo", "Nenhum código informado");
-           mensagens.put("Expirado", "Código expirado! Um novo código foi enviado.");
 
-            String msg = mensagens.get(Result);
-            errorLabel.setText(msg);
+ confirmButton.addActionListener(e -> {
+    String codigoDigitado = codeField.getText();
 
-         } else {
-            FA2.setVisible(false);
-         };
-    });
+    // roda em outra thread pra não travar a UI
+    new Thread(() -> {
+        String Result = AuthenticationService.VerifyCode(codigoDigitado);
+
+        SwingUtilities.invokeLater(() -> {
+            if (!Result.equals("Sucesso")) {
+                Map<String, String> mensagens = new HashMap<>();
+
+                mensagens.put("Incorreto", "O código informado está incorreto");
+                mensagens.put("Invalido", "Formato do código é inválido");
+                mensagens.put("Nulo", "Nenhum código informado");
+                mensagens.put("Expirado", "Código expirado! Um novo código foi enviado.");
+                mensagens.put("LoginBlocked", "Login bloqueado!");
+
+                String msg = mensagens.get(Result);
+                errorLabel.setText(msg);
+
+            } else {
+                FA2.setVisible(false);
+                // aqui você pode chamar o painel seguinte, se quiser
+                // proximaTela.setVisible(true);
+            }
+        });
+    }).start();
+});
+
 
     cancelButton.addActionListener(e -> {
         mainPanel.setVisible(false);
@@ -298,24 +320,30 @@ public class InterfaceUI {
             mensagens.put("Incorrect", "Já existe um cadastro com esse email");
              mensagens.put("TryAgainLater", "Aguarde um pouco");
 
-        registerButton.addActionListener(e -> {
-            String email = emailField.getText();
-            String password = new String(passwordField.getPassword());
-             String password2 = new String(passwordField2.getPassword());
-            // implementar login
-         String Result =  AuthenticationService.RegistroCriar(email,password,password2);
-         Main.print(Result);
-        
-          
+       registerButton.addActionListener(e -> {
+    String email = emailField.getText();
+    String password = new String(passwordField.getPassword());
+    String password2 = new String(passwordField2.getPassword());
 
-         if (Result.equals("Sucesso")) {
-            errorLabel.setText("Logado");
-            CadastroPanel.setVisible(false);
-         } else {
-         String msg = mensagens.get(Result);
-            errorLabel.setText(msg);
-         };
+    // roda em outra thread pra não travar a UI
+    new Thread(() -> {
+        String Result = AuthenticationService.RegistroCriar(email, password, password2);
+        Main.print(Result);
+
+        SwingUtilities.invokeLater(() -> {
+            if (Result.equals("Sucesso")) {
+                errorLabel.setText("Cadastrado com sucesso");
+                CadastroPanel.setVisible(false);
+                // aqui você pode abrir o próximo painel, se quiser
+                // proximaTela.setVisible(true);
+            } else {
+                String msg = mensagens.get(Result);
+                errorLabel.setText(msg);
+            }
         });
+    }).start();
+});
+
     
        
    };
@@ -485,29 +513,50 @@ public class InterfaceUI {
             mensagens.put("TryAgainLater", "Aguarde um pouco");
 
         // Eventos
-        loginButton.addActionListener(e -> {
-            String email = emailField.getText();
-            String password = new String(passwordField.getPassword());
-            boolean checked = rememberCheck.isSelected();
-            // implementar login
-         String Result =  AuthenticationService.LoginCheck(email,password,checked);
-         Main.print(Result);
-        
-          
 
-         if (Result.equals("Sucesso")) {
-            errorLabel.setText("Logado");
-         } else {
-         String msg = mensagens.get(Result);
-         String X = "";
-            
-         if (Result == "LoginBlocked") {
-         X = AuthenticationService.PegarTempoRestante();};
+        forgotButton.addActionListener(e -> {
+              String email = emailField.getText();
+    new Thread(() -> {
+       
+      String Result = AuthenticationService.ResetPasswordEvent(email);
 
-            errorLabel.setText(msg+X);
-         };
+        SwingUtilities.invokeLater(() -> {
+              if (Result.equals("Sucesso")) {
 
+              }else{
+                String msg = mensagens.get(Result);
+                 errorLabel.setText(msg);
+              }
         });
+    }).start();
+});
+
+        loginButton.addActionListener(e -> {
+    String email = emailField.getText();
+    String password = new String(passwordField.getPassword());
+    boolean checked = rememberCheck.isSelected();
+
+    // roda em outra thread pra não travar a UI
+    new Thread(() -> {
+        String Result = AuthenticationService.LoginCheck(email, password, checked);
+        Main.print(Result);
+
+        SwingUtilities.invokeLater(() -> {
+            if (Result.equals("Sucesso")) {
+                errorLabel.setText("Logado");
+                // aqui você pode abrir o próximo painel, se quiser
+                // proximaTela.setVisible(true);
+            } else {
+                String msg = mensagens.get(Result);
+                if (Result.equals("LoginBlocked")) {
+                    msg += AuthenticationService.PegarTempoRestante();
+                }
+                errorLabel.setText(msg);
+            }
+        });
+    }).start();
+});
+
 
         registerButton.addActionListener(e -> {
             LoginPanel.setVisible(false);
