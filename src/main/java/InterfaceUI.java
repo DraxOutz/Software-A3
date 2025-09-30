@@ -4,14 +4,40 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
-
+/**
+ * Classe InterfaceUI
+ *
+ * ⚠️ ALTAMENTE IMPORTANTE ⚠️
+ * --------------------------------------------------------
+ * ESTA É A CAMADA **FRONT-END** DO SISTEMA.
+ * 
+ * - Responsável por criar as telas de Login, Registro e 2FA.
+ * - Toda a validação e segurança é feita em AuthenticationService (back-end).
+ * - Aqui só lidamos com a interface visual (Swing).
+ * - Nunca faça lógica de segurança dentro da UI.
+ * --------------------------------------------------------
+ *
+ * Fluxo:
+ * 1. `CreateInterface()` → cria janela principal.
+ * 2. `CreateLogin()` → mostra tela de login.
+ * 3. `CreateRegistroPanel()` → mostra tela de registro.
+ * 4. `Panel2FA()` → mostra verificação em 2 fatores.
+ */
 public class InterfaceUI {
 
+     // Toolkit para pegar o tamanho da tela do sistema
     static Toolkit toolkit = Toolkit.getDefaultToolkit();
     static Dimension screenSize = toolkit.getScreenSize();
 
+    // Frame principal da aplicação
     static JFrame FrameZin;
 
+
+     /**
+     * Cria a janela principal (frame) do programa.
+     * - Tela cheia, sem bordas, fundo escuro.
+     * - Exibe inicialmente o painel de login.
+     */
     public static void CreateInterface() {
 
         JFrame frame = new JFrame(Main.GetProgramName());
@@ -29,6 +55,8 @@ public class InterfaceUI {
 
         CreateLogin(frame);
 
+        // se o usuario tiver um token salvo no PC (Remember me), ele ja loga sem senha e email automaticamente !!!ATENÇÃO ESSE TOKEN SE HACKEADO 
+        //OU DESCRIPTOGRAFADO QUALQUER UM PODE ACESSAR ESSA CONTA, POR ISSO RESETAR O TOKEN AO MUDAR SENHA OU A CADA 30 DIAS
        if (AuthenticationService.HasTokenSaved() == true ){
         LoginPanel.setVisible(false);
        };
@@ -40,6 +68,13 @@ public class InterfaceUI {
       static JPanel Home;
        static JPanel FA2;
 
+
+        /**
+     * Painel de 2FA (autenticação em duas etapas).
+     * Exibe campo para digitar código recebido no e-mail.
+     * 
+     * @param email e-mail usado para exibir instrução
+     */
         public static void Panel2FA(String email) {
 
                 // Esconde login e registro
@@ -168,7 +203,11 @@ public class InterfaceUI {
 
             };
 
-
+ /**
+     * Cria painel de Registro (cadastro de novo usuário).
+     * 
+     * @param frame janela principal
+     */
    public static void CreateRegistroPanel(JFrame frame) {
        // frame.getContentPane().removeAll();
 
@@ -347,7 +386,15 @@ public class InterfaceUI {
     
        
    };
-
+   /**
+     * Cria painel de Login.
+     * - Usuário digita e-mail e senha.
+     * - Pode marcar "lembrar de mim".
+     * - Pode recuperar senha.
+     * - Pode ir para cadastro.
+     *
+     * @param frame janela principal
+     */
     public static void CreateLogin(JFrame frame) {
        // frame.getContentPane().removeAll();
 
@@ -355,7 +402,7 @@ public class InterfaceUI {
         int totalHeight = (int) (frame.getHeight() * 0.5);
 
         // ================= Painel de fundo =================
-         backgroundPanel = new JPanel() {
+         backgroundPanel = new JPanel() { //Configuração de fundo gradiente
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
@@ -368,13 +415,13 @@ public class InterfaceUI {
                 g2.fillRect(0, 0, getWidth(), getHeight());
             }
         };
-        backgroundPanel.setLayout(new GridBagLayout());
+        backgroundPanel.setLayout(new GridBagLayout()); // colocar o estilo de layout
         frame.setContentPane(backgroundPanel);
 
         // ================= Painel principal =================
         JPanel mainPanel = new JPanel(new GridLayout(1, 2, 0, 0));
         mainPanel.setPreferredSize(new Dimension(totalWidth, totalHeight));
-        mainPanel.setBackground(new Color(0, 0, 0));
+        mainPanel.setBackground(new Color(0, 0, 0)); // cor do fundo RGB
 
         LoginPanel = mainPanel;
 
@@ -383,19 +430,19 @@ public class InterfaceUI {
         leftPanel.setBackground(Color.WHITE);
         leftPanel.setPreferredSize(new Dimension(totalWidth/2, totalHeight));
 
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 20, 10, 20);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.CENTER;
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.gridwidth = 2;
+        GridBagConstraints gbc = new GridBagConstraints(); //Define as regras de posicionamento (restrições)
+        gbc.insets = new Insets(10, 20, 10, 20); //10 (topo), 20 (esquerda), 10 (baixo), 20 (direita).
+        gbc.fill = GridBagConstraints.HORIZONTAL; //Como o componente deve preencher o espaço da célula.
+        gbc.anchor = GridBagConstraints.CENTER; //alinhamento dentro da célula caso o componente não preencha tudo.
+        gbc.gridx = 0; //coluna (eixo X) onde o componente vai ser colocado
+        gbc.gridy = 0; //linha (eixo Y) onde o componente vai ser colocado
+        gbc.gridwidth = 2; //Faz o componente ocupar 2 colunas ao invés de só 1.
 
-        JLabel titleLabel = new JLabel("Entrar em "+Main.GetProgramName()+"!");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 26));
-        titleLabel.setForeground(new Color(46, 0, 110));
-        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        leftPanel.add(titleLabel, gbc);
+        JLabel titleLabel = new JLabel("Entrar em "+Main.GetProgramName()+"!"); //Entrar em <nome do programa>!
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 26)); //Define a fonte do texto
+        titleLabel.setForeground(new Color(46, 0, 110)); //Define a cor do texto.
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER); //Alinha o texto horizontalmente no centro do JLabel.
+        leftPanel.add(titleLabel, gbc); //Adiciona o titleLabel dentro do painel leftPanel.
 
         // Email Label
         gbc.gridy++;
