@@ -29,7 +29,7 @@ public class database {
     private static final String USER = "root";
     
     // Senha do banco
-    private static final String PASSWORD = "BatatinhaFrita123!";  //!!!PORFAVOR NÃO COLOQUE A SENHA NO GITHUB 
+    private static final String PASSWORD = "X!";  //!!!PORFAVOR NÃO COLOQUE A SENHA NO GITHUB 
 
     /**
      * Retorna uma conexão válida com o banco de dados.
@@ -303,3 +303,4 @@ public class database {
         }
     }
 }
+
