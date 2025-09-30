@@ -8,27 +8,56 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.sql.Timestamp;
 
+/**
+ * Classe responsável por toda a comunicação com o banco de dados MySQL.
+ * 
+ * <p>Ela contém métodos para:</p>
+ * <ul>
+ *   <li>Criar usuários (com senha + salt + token de login).</li>
+ *   <li>Validar se um usuário existe.</li>
+ *   <li>Buscar senha, salt, token e tentativas de login.</li>
+ *   <li>Gerenciar tentativas de login (resetar/decrementar).</li>
+ *   <li>Testar a conexão com o banco de dados.</li>
+ * </ul>
+ */
 public class database {
     
+    // URL de conexão com o banco de dados MySQL
     private static final String URL = "jdbc:mysql://localhost:3306/users_db";
-    private static final String USER = "root";           // seu usuário
-    private static final String PASSWORD = "X!"; // a senha que você configurou
+    
+    // Usuário do banco (root no caso local, mas em produção seria outro usuário com menos permissões)
+    private static final String USER = "root";
+    
+    // Senha do banco
+    private static final String PASSWORD = "BatatinhaFrita123!";  //!!!PORFAVOR NÃO COLOQUE A SENHA NO GITHUB 
 
-     public static Connection getConnection() throws SQLException {
+    /**
+     * Retorna uma conexão válida com o banco de dados.
+     * 
+     * @return Connection ativa com o MySQL.
+     * @throws SQLException se houver erro ao conectar.
+     */
+    public static Connection getConnection() throws SQLException {
         return DriverManager.getConnection(URL, USER, PASSWORD);
     }
     
-     public static String getPasswordHash(String email) {
+    /**
+     * Busca o hash da senha de um usuário pelo email.
+     * 
+     * @param email Email do usuário.
+     * @return Hash da senha ou null se não encontrado.
+     */
+    public static String getPasswordHash(String email) {
         String sql = "SELECT senha_hash FROM usuarios WHERE email = ?";
 
-        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+        try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setString(1, email);
+            stmt.setString(1, email); // substitui o ? pelo email
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                return rs.getString("senha_hash"); // pega a senha do banco
+                return rs.getString("senha_hash"); // retorna o hash
             }
 
         } catch (SQLException e) {
@@ -38,135 +67,183 @@ public class database {
         return null; // usuário não encontrado
     }
 
+    /**
+     * Busca o token de login salvo para um usuário.
+     * 
+     * @param email Email do usuário.
+     * @return Token ou null se não existir.
+     */
     public static String getToken(String email) {
         String sql = "SELECT remember_token FROM usuarios WHERE email = ?";
 
-        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+        try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, email);
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                return rs.getString("remember_token"); // pega a senha do banco
+                return rs.getString("remember_token");
             }
 
         } catch (SQLException e) {
             e.printStackTrace();
         }
 
-        return null; // usuário não encontrado
+        return null;
     }
 
+    /**
+     * Cria um novo usuário no banco com email, senha (hash + salt),
+     * token de autenticação e data de expiração.
+     * 
+     * @param email Email do usuário.
+     * @param senha Senha em texto puro (será convertida para hash+salt).
+     * @return true se o usuário foi criado com sucesso, false se deu erro.
+     */
     public static boolean criarUsuario(String email, String senha) {
-        // Gera salt e hash
+        // Gera salt e hash da senha
         String salt = Criptografia.gerarSalt();
         String hash = Criptografia.hashPassword(senha, salt);
+        
+        // Token expira em 30 dias
         LocalDateTime expira = LocalDateTime.now().plusDays(30);
 
         String sql = "INSERT INTO usuarios (email, senha_hash, salt, tentativas_login, ultima_tentativa, remember_token, token_expira_em) " +
-                     "VALUES (?, ?, ?, 5, NOW(),?,?)";
+                     "VALUES (?, ?, ?, 5, NOW(), ?, ?)";
 
-        try (Connection conn = database.getConnection();
+        try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, email);
             stmt.setString(2, hash);
             stmt.setString(3, salt);
-            String token = AuthenticationService.GerarToken(); 
-              stmt.setString(4, token);
-    stmt.setTimestamp(5, Timestamp.valueOf(expira));
+
+            // Gera token de autenticação
+            String token = AuthenticationService.GerarToken();
+            stmt.setString(4, token);
+
+            // Define data de expiração do token
+            stmt.setTimestamp(5, Timestamp.valueOf(expira));
 
             int linhas = stmt.executeUpdate();
-            return linhas > 0; // se inseriu, retorna true
+            return linhas > 0; // true se inseriu corretamente
 
         } catch (SQLException e) {
             e.printStackTrace();
-            return false; // deu erro, provavelmente email já existe
+            return false; // provavelmente email já existe
         }
     }
 
+    /**
+     * Retorna o salt do usuário (usado para validar a senha).
+     * 
+     * @param email Email do usuário.
+     * @return Salt armazenado ou null se não existir.
+     */
     public static String getUserSalt(String email) {
         String sql = "SELECT salt FROM usuarios WHERE email = ?";
 
-        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+        try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, email);
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                return rs.getString("salt"); // pega o salt do banco
+                return rs.getString("salt");
             }
 
         } catch (SQLException e) {
             e.printStackTrace();
         }
 
-        return null; // usuário não encontrado
+        return null;
     }
 
+    /**
+     * Retorna o número de tentativas de login restantes de um usuário.
+     * 
+     * @param email Email do usuário.
+     * @return Número de tentativas restantes (ou 0 se não encontrado).
+     */
+    public static int getUserTrys(String email) {
+        String sql = "SELECT tentativas_login FROM usuarios WHERE email = ?";
 
-public static int getUserTrys(String email) {
-    String sql = "SELECT tentativas_login FROM usuarios WHERE email = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-    try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
-         PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, email);
+            ResultSet rs = stmt.executeQuery();
 
-        stmt.setString(1, email);
-        ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("tentativas_login");
+            }
 
-        if (rs.next()) {
-            return rs.getInt("tentativas_login"); // pega o número de tentativas
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
 
-    } catch (SQLException e) {
-        e.printStackTrace();
+        return 0;
     }
 
-    return 0; // usuário não encontrado ou erro
-}
+    /**
+     * Decrementa em 1 as tentativas de login do usuário.
+     * Também atualiza a data da última tentativa.
+     * 
+     * @param email Email do usuário.
+     */
+    public static void decrementarTentativa(String email) {
+        String sql = "UPDATE usuarios SET tentativas_login = tentativas_login - 1, ultima_tentativa = NOW() WHERE email = ?";
 
-public static void decrementarTentativa(String email) {
-    String sql = "UPDATE usuarios SET tentativas_login = tentativas_login - 1, ultima_tentativa = NOW() WHERE email = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-    try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
-         PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, email);
+            int linhas = stmt.executeUpdate();
 
-        stmt.setString(1, email);
-        int linhas = stmt.executeUpdate();
+            if (linhas > 0) {
+                System.out.println("Tentativa decrementada para o usuário: " + email);
+            }
 
-        if (linhas > 0) {
-            System.out.println("Tentativa decrementada para o usuário: " + email);
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-
-    } catch (SQLException e) {
-        e.printStackTrace();
     }
-}
 
-public static void resetarTentativas(String email) {
-    String sql = "UPDATE usuarios SET tentativas_login = 5, ultima_tentativa = NULL WHERE email = ?";
+    /**
+     * Reseta o número de tentativas de login do usuário para 5.
+     * 
+     * @param email Email do usuário.
+     */
+    public static void resetarTentativas(String email) {
+        String sql = "UPDATE usuarios SET tentativas_login = 5, ultima_tentativa = NULL WHERE email = ?";
 
-    try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
-         PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-        stmt.setString(1, email);
-        int linhas = stmt.executeUpdate();
+            stmt.setString(1, email);
+            int linhas = stmt.executeUpdate();
 
-        if (linhas > 0) {
-            Main.print("Tentativas resetadas para o usuário: " + email);
+            if (linhas > 0) {
+                Main.print("Tentativas resetadas para o usuário: " + email);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-
-    } catch (SQLException e) {
-        e.printStackTrace();
     }
-}
 
+    /**
+     * Verifica se um usuário existe pelo email.
+     * 
+     * @param email Email do usuário.
+     * @return true se o usuário existe, false caso contrário.
+     */
     public static boolean userExists(String email) {
         String sql = "SELECT COUNT(*) FROM usuarios WHERE email = ?";
 
-        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+        try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, email);
@@ -174,20 +251,26 @@ public static void resetarTentativas(String email) {
 
             if (rs.next()) {
                 int count = rs.getInt(1);
-                return count > 0; // retorna true se existir
+                return count > 0;
             }
 
         } catch (SQLException e) {
             e.printStackTrace();
         }
 
-        return false; // não encontrado ou erro
+        return false;
     }
 
+    /**
+     * Retorna a data/hora da última tentativa de login do usuário.
+     * 
+     * @param email Email do usuário.
+     * @return LocalDateTime da última tentativa ou null se não houver.
+     */
     public static LocalDateTime getUltimaTentativa(String email) {
         String sql = "SELECT ultima_tentativa FROM usuarios WHERE email = ?";
 
-        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+        try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, email);
@@ -196,7 +279,7 @@ public static void resetarTentativas(String email) {
             if (rs.next()) {
                 Timestamp ts = rs.getTimestamp("ultima_tentativa");
                 if (ts != null) {
-                    return ts.toLocalDateTime(); // converte para LocalDateTime
+                    return ts.toLocalDateTime();
                 }
             }
 
@@ -204,8 +287,12 @@ public static void resetarTentativas(String email) {
             e.printStackTrace();
         }
 
-        return null; // usuário não encontrado ou sem tentativa registrada
+        return null;
     }
+
+    /**
+     * Método principal para testar conexão com o banco.
+     */
     public static void main(String[] args) {
         try (Connection conn = getConnection()) {
             if (conn != null) {
@@ -215,7 +302,4 @@ public static void resetarTentativas(String email) {
             e.printStackTrace();
         }
     }
-
 }
-
-
