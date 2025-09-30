@@ -1,31 +1,38 @@
-package main.java;
+package main.java; // Define o pacote onde essa classe está. Isso ajuda a organizar o código em pastas.
 
-import javax.mail.*;
-import javax.mail.internet.*;
-import java.net.InetAddress;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Properties;
+import javax.mail.*; // classes principais para envio de email.
+import javax.mail.internet.*; // classes para emails com HTML, anexos, etc.
+import java.net.InetAddress; // Pega informações de rede, como o IP local.
+import java.time.LocalDateTime; // trabalham com data e hora formatadas.
+import java.time.format.DateTimeFormatter; // trabalham com data e hora formatadas.
+import java.util.Properties; // Configuração de parâmetros para o servidor de email (SMTP).
 
-public class SendEmail {
+public class SendEmail { // Define a classe SendEmail. O código fica organizado dentro dela.
 
     public static void Send(String email, String code) {
+        //email = destinatário.
+        //code = código de verificação que será enviado.
 
+        //Email do nosso software para nossos clientes receberem mensagens
         String to = email;
-        String from = "X@gmail.com";
-        String password = "cwbi mcsd raaj cgjd"; // senha de app do Gmail
+        String from = "X@gmail.com"; // email !!!PORFAVOR NÃO COLOQUE O EMAIL NO GITHUB 
+        String password = "X X X X"; // senha de app do Gmail !!!PORFAVOR NÃO COLOQUE A SENHA NO GITHUB 
+
+        //Define o email de destino, o email remetente e a senha de aplicativo (não é a senha real, e sim uma senha gerada no Gmail para apps).
 
         Properties props = new Properties();
-        props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.starttls.enable", "true");
-        props.put("mail.smtp.host", "smtp.gmail.com");
-        props.put("mail.smtp.port", "587");
+        props.put("mail.smtp.auth", "true"); // exige autenticação.
+        props.put("mail.smtp.starttls.enable", "true"); // usa criptografia TLS para proteger os dados.
+        props.put("mail.smtp.host", "smtp.gmail.com"); // → endereço do servidor do Gmail.
+        props.put("mail.smtp.port", "587"); // porta usada (587 = TLS).
 
         Session session = Session.getInstance(props, new javax.mail.Authenticator() {
             protected PasswordAuthentication getPasswordAuthentication() {
                 return new PasswordAuthentication(from, password);
             }
         });
+
+        // Usa o email e a senha do remetente para garantir que só o dono da conta pode enviar.
 
         try {
             // Pegando IP local
@@ -72,18 +79,18 @@ public class SendEmail {
             multipart.addBodyPart(mimeBodyPart);
 
             Message message = new MimeMessage(session);
-            message.setFrom(new InternetAddress(from, Main.GetProgramName()));
-            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to));
-            message.setSubject("Código de Verificação - " + Main.GetProgramName());
-            message.setContent(multipart);
+            message.setFrom(new InternetAddress(from, Main.GetProgramName())); // define quem está enviando.
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to)); // define o destinatário.
+            message.setSubject("Código de Verificação - " + Main.GetProgramName());//define o assunto do email.
+            message.setContent(multipart); //coloca o HTML formatado.
 
-            Transport.send(message);
+            Transport.send(message); //Envia o email pelo servidor SMTP do Gmail.
 
-            System.out.println("Email enviado com sucesso!");
+            System.out.println("Email enviado com sucesso!"); //Mensagem de sucesso no console para confirmar que foi enviado.
 
         } catch (Exception e) {
             e.printStackTrace();
+            //Se algo der errado (senha errada, internet caída, servidor SMTP fora do ar), o catch pega a exceção e mostra o erro no console.
         }
     }
 }
-
