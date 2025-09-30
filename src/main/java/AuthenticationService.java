@@ -1,6 +1,5 @@
 package main.java;
 
-
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Random;
@@ -10,17 +9,36 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.prefs.Preferences;
 
-
-
 /**
  * Classe AuthenticationService
- * 
- * Fornece métodos para validar e autenticar credenciais de usuário,
- * incluindo validação de e-mail e verificação de senha segura.
+ *
+ * ⚠️ ALTAMENTE IMPORTANTE ⚠️
+ * --------------------------------------------------------
+ * Esta classe controla LOGIN, REGISTRO e AUTENTICAÇÃO.
+ *
+ * - Nunca armazene senhas em texto puro.
+ * - Sempre use hash + salt (Criptografia.hashPassword).
+ * - Tokens e códigos de verificação precisam ser protegidos.
+ * - Nunca faça logs com senha real em produção.
+ *
+ * Qualquer descuido aqui pode comprometer TODO o sistema.
+ * --------------------------------------------------------
+ *
+ * <p>Funções principais:</p>
+ * <ul>
+ *   <li>Validar formato de e-mail.</li>
+ *   <li>Validar se a senha atende aos critérios de segurança.</li>
+ *   <li>Gerar tokens e códigos temporários (2FA).</li>
+ *   <li>Gerenciar autenticação de login e cadastro.</li>
+ *   <li>Controlar tentativas de login e bloqueios temporários.</li>
+ *   <li>Lembrar login (persistência com Preferences).</li>
+ * </ul>
  */
 public class AuthenticationService {
 
-    // Expressão regular para validar e-mails
+    // -----------------------------
+    // REGEX PARA VALIDAR EMAIL
+    // -----------------------------
     private static final String EMAIL_REGEX = "^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$";
     private static final Pattern EMAIL_PATTERN = Pattern.compile(EMAIL_REGEX);
 
@@ -31,72 +49,76 @@ public class AuthenticationService {
      * @return true se o e-mail estiver no formato correto, false caso contrário.
      */
     public static boolean isEmailValido(String email) {
-        if (email == null) return false; // retorna false se o e-mail for nulo
+        if (email == null) return false;
         Matcher matcher = EMAIL_PATTERN.matcher(email);
-        return matcher.matches(); // verifica se o e-mail corresponde ao padrão
+        return matcher.matches();
     }
 
-    // Expressão regular para validar senhas seguras
+    // -----------------------------
+    // REGEX PARA VALIDAR SENHAS
+    // -----------------------------
     private static final String SENHA_REGEX =
             "^(?=.*[a-z])" +        // pelo menos 1 letra minúscula
             "(?=.*[A-Z])" +         // pelo menos 1 letra maiúscula
             "(?=.*\\d)" +           // pelo menos 1 número
             "(?=.*[@#$%^&+=!])" +   // pelo menos 1 caractere especial
             "(?=\\S+$)" +           // sem espaços em branco
-              ".{8,64}$";                // mínimo de 8 e maximo 64 caracteres
+            ".{8,64}$";             // mínimo 8 e máximo 64 caracteres
 
     /**
      * Verifica se a senha fornecida é segura.
      *
      * @param senha A senha a ser validada.
-     * @return true se a senha atender aos critérios de segurança, false caso contrário.
+     * @return true se atender aos critérios de segurança, false caso contrário.
      */
     public static boolean isSenhaSegura(String senha) {
-        if (senha == null) return false; // retorna false se a senha for nula
-        return senha.matches(SENHA_REGEX); // verifica se a senha atende à expressão regular
+        if (senha == null) return false;
+        return senha.matches(SENHA_REGEX);
     }
 
-    /**
-     * Verifica as credenciais do usuário e retorna o resultado da autenticação.
-     *
-     * @param email    O e-mail do usuário.
-     * @param password A senha do usuário.
-     * @param Check    Um booleano adicional (Utilizado para lembrar login).
-     * @return Uma string indicando o resultado da validação:
-     *         "InvalidEmail" - se o e-mail for inválido
-     *         "InvalidPassword" - se a senha não for segura
-     *         "Sucesso" - se e-mail e senha forem válidos
-     */
-
+    // -----------------------------
+    // VARIÁVEIS DE CONTROLE
+    // -----------------------------
     private static long minutosRestantes;
-     private static long lastRegisterAttempt = 0; 
+    private static long lastRegisterAttempt = 0;
     private static Boolean Verified = false;
     private static String Code;
     private static String LoginOuRegister;
-     static boolean Logged = false;
+    static boolean Logged = false;
     private static LocalDateTime CodeGeneratedTime;
     private static Boolean RememberMe;
     static public String TokenVerifiy;
 
-    private static String emaill,senha;
+    private static String emaill, senha;
 
+    // Gerador de números aleatórios seguros
     private static final SecureRandom random = new SecureRandom();
+
+    // Preferences (armazenamento local para lembrar login)
     private static final Preferences prefs = Preferences.userRoot().node("meuapp");
 
-    public static String ResetPasswordEvent(String email){
-         String Result = "Nulo";
-
+    /**
+     * Evento para redefinir senha (em construção).
+     *
+     * @param email Email do usuário.
+     * @return Resultado da operação.
+     */
+    public static String ResetPasswordEvent(String email) {
+        String Result = "Nulo";
         return Result;
     }
-    
- 
+
+    /**
+     * Verifica se há token salvo para o usuário.
+     *
+     * @return true se houver token válido, false caso contrário.
+     */
     public static Boolean HasTokenSaved() {
         boolean Vlr = false;
 
         String email = prefs.get("remember_email", null);
 
         if (email != null) {
-            
             String salt = database.getUserSalt(email);
 
             String Token = prefs.get("remember_token", null);
@@ -104,234 +126,248 @@ public class AuthenticationService {
 
             String TokenArmazenado = database.getToken(email);
             TokenArmazenado = Criptografia.hashPassword(TokenArmazenado, salt);
-//
-         if (Criptografia.verifyPassword(Token, TokenArmazenado)) {
-              LoginOuRegister = "Login";
-              Logged = true;
-              Vlr = true;
-              Main.print("O úsuario possui token salvo.");
-         };
-//
-        };
 
- return Vlr;
-    };
-
-
-     public static void SendCode() {
-
-
-        if (CodeGeneratedTime != null) {
-        Duration duration = Duration.between(CodeGeneratedTime, LocalDateTime.now());
-        if (duration.toMinutes() < 5) {
-            Main.print("Código já gerado recentemente. Aguarde " + (5 - duration.toMinutes()) + " minutos.");
-            return; // não gera novo código
+            // Verifica se o token bate
+            if (Criptografia.verifyPassword(Token, TokenArmazenado)) {
+                LoginOuRegister = "Login";
+                Logged = true;
+                Vlr = true;
+                Main.print("O usuário possui token salvo.");
+            }
         }
+
+        return Vlr;
     }
 
-    // Gera um código alfanumérico de 8 caracteres
-    String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    StringBuilder sb = new StringBuilder();
-    Random random = new Random();
-    for (int i = 0; i < 8; i++) {
-        sb.append(chars.charAt(random.nextInt(chars.length())));
+    /**
+     * Gera e envia um código de verificação (2FA).
+     * Código expira em 30 minutos.
+     * Bloqueia regeneração em menos de 5 minutos.
+     */
+    public static void SendCode() {
+        if (CodeGeneratedTime != null) {
+            Duration duration = Duration.between(CodeGeneratedTime, LocalDateTime.now());
+            if (duration.toMinutes() < 5) {
+                Main.print("Código já gerado recentemente. Aguarde " + (5 - duration.toMinutes()) + " minutos.");
+                return;
+            }
+        }
+
+        // Gera código alfanumérico de 8 caracteres
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        StringBuilder sb = new StringBuilder();
+        Random random = new Random();
+        for (int i = 0; i < 8; i++) {
+            sb.append(chars.charAt(random.nextInt(chars.length())));
+        }
+
+        Code = sb.toString();
+        CodeGeneratedTime = LocalDateTime.now();
+
+        Main.print("Código gerado: " + Code);
+
+        // Envia o código por e-mail
+        SendEmail.Send(emaill, Code);
     }
-    
-    Code = sb.toString();
 
-    // Marca o horário de geração
-    CodeGeneratedTime = LocalDateTime.now();
-
-    Main.print("Código gerado: " + Code);
-
-    // Envia o código por email
-    SendEmail.Send(emaill, Code);
-}
-
+    /**
+     * Gera um token seguro de 256 bits.
+     *
+     * @return Token em formato Base64 URL Safe.
+     */
     public static String GerarToken() {
-           
         byte[] bytes = new byte[32]; // 256 bits
         random.nextBytes(bytes);
 
-        String Token =  Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        String Token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         TokenVerifiy = Token;
-
-
 
         return Token;
     }
 
-public static String VerifyCode(String codigoDigitado) {
-    if (codigoDigitado == null || codigoDigitado.isEmpty()) {
-        return "Nulo"; // Campo vazio
-    }
+    /**
+     * Verifica o código digitado pelo usuário (2FA).
+     *
+     * @param codigoDigitado Código inserido pelo usuário.
+     * @return Resultado da verificação ("Sucesso", "Expirado", "Incorreto"...).
+     */
+    public static String VerifyCode(String codigoDigitado) {
+        if (codigoDigitado == null || codigoDigitado.isEmpty()) {
+            return "Nulo"; // Campo vazio
+        }
 
-    // Verifica se o código expirou
-    Duration duration = Duration.between(CodeGeneratedTime, LocalDateTime.now());
-    if (duration.toMinutes() > 30) {
-        SendCode(); // gera um novo código
-        return "Expirado"; // código expirou
-    }
+        // Verifica expiração
+        Duration duration = Duration.between(CodeGeneratedTime, LocalDateTime.now());
+        if (duration.toMinutes() > 30) {
+            SendCode();
+            return "Expirado";
+        }
 
-    if (  LoginOuRegister == "Login") {
-        int Tentativas = database.getUserTrys(emaill);
- if (Tentativas <=0) {
-     return "LoginBlocked";}
-    };
+        // Se for login, checa tentativas
+        if (LoginOuRegister == "Login") {
+            int Tentativas = database.getUserTrys(emaill);
+            if (Tentativas <= 0) {
+                return "LoginBlocked";
+            }
+        }
 
-    // Compara o código digitado com o gerado
-    if (codigoDigitado.equals(Code)) {
-        Verified = true;
+        // Comparação do código
+        if (codigoDigitado.equals(Code)) {
+            Verified = true;
 
-        if (LoginOuRegister.equals("Cadastro")) {
-            RegistroCriar(emaill, senha, senha);
-            Main.print("Usuario criado no registro.");
+            if (LoginOuRegister.equals("Cadastro")) {
+                RegistroCriar(emaill, senha, senha);
+                Main.print("Usuário criado no registro.");
+            } else {
+                Logged = true;
+                Main.print("Usuário logado.");
+                if (RememberMe == true) {
+                    prefs.put("remember_email", emaill);
+                    prefs.put("remember_token", TokenVerifiy);
+                }
+            }
+
+            return "Sucesso";
         } else {
-            Logged = true;
-            Main.print("Usuario logado no registro.");
-            // 
-            if (RememberMe == true) {
-             //
-                 prefs.put("remember_email", emaill);
-                 prefs.put("remember_token", TokenVerifiy);
-             //
-            };
-            //
+            if (LoginOuRegister == "Login") {
+                database.decrementarTentativa(emaill);
+            }
+            return "Incorreto";
         }
-
-        return "Sucesso"; // Código correto
-    } else {
-        if (  LoginOuRegister == "Login") {
-              database.decrementarTentativa(emaill);
-        }
-        return "Incorreto"; // Código errado
     }
-}
 
-
-     public static String PegarTempoRestante(){
-        String vlr = minutosRestantes+" minutos";
+    /**
+     * Retorna o tempo restante de bloqueio.
+     *
+     * @return String com minutos restantes.
+     */
+    public static String PegarTempoRestante() {
+        String vlr = minutosRestantes + " minutos";
         return vlr;
-     }
+    }
 
+    /**
+     * Realiza o registro de um novo usuário.
+     *
+     * @param email    Email do usuário.
+     * @param password Senha do usuário.
+     * @param password2 Confirmação da senha.
+     * @return Resultado da operação ("Sucesso", "InvalidEmail", etc.).
+     */
     public static String RegistroCriar(String email, String password, String password2) {
-         String Result = "Nulo"; // valor inicial do resultado
-         long agoratick = System.currentTimeMillis();
+        String Result = "Nulo";
+        long agoratick = System.currentTimeMillis();
 
-            if (agoratick - lastRegisterAttempt < 2000) {
-        // se a última tentativa foi há menos de 2 segundos, bloqueia
-        return Result = "TryAgainLater"; // você cria uma mensagem apropriada
-         }
+        if (agoratick - lastRegisterAttempt < 2000) {
+            return "TryAgainLater";
+        }
 
-  lastRegisterAttempt = agoratick;
+        lastRegisterAttempt = agoratick;
 
         if (!isEmailValido(email)) {
-            Result = "InvalidEmail"; // e-mail inválido
+            Result = "InvalidEmail";
         }
 
         if (!isSenhaSegura(password)) {
-            Result = "InvalidPassword"; // senha inválida
+            Result = "InvalidPassword";
         }
 
         if (!password.trim().equals(password2.trim())) {
             Result = "IncorretoSenha";
         }
 
-         if (database.userExists(email)) {
-             Result = "Incorrect";
-         };
+        if (database.userExists(email)) {
+            Result = "Incorrect";
+        }
 
-         if (Result.equals("Nulo") && Verified == true ) {
-          database.criarUsuario(email,password);
-          Result = "Sucesso";
-         } else if (Result.equals("Nulo")) {
+        if (Result.equals("Nulo") && Verified == true) {
+            database.criarUsuario(email, password);
+            Result = "Sucesso";
+        } else if (Result.equals("Nulo")) {
             emaill = email;
             senha = password;
             LoginOuRegister = "Cadastro";
             SendCode();
-             InterfaceUI.Panel2FA(email);
-         };
+            InterfaceUI.Panel2FA(email);
+        }
 
         return Result;
-    };
+    }
 
+    /**
+     * Realiza a verificação de login.
+     *
+     * @param email    Email do usuário.
+     * @param password Senha digitada.
+     * @param Check    Se verdadeiro, ativa a opção "lembrar login".
+     * @return Resultado ("Sucesso", "InvalidEmail", "InvalidPassword", etc.).
+     */
     public static String LoginCheck(String email, String password, boolean Check) {
-        Main.print(email + password); // imprime e-mail e senha para debug (remover em produção)
+        // ⚠️ IMPORTANTE: Nunca logar senha em produção
+        Main.print("Tentativa de login para: " + email);
 
         long agoratick = System.currentTimeMillis();
+        String Result = "Nulo"; // por padrão nulo
 
+        if (agoratick - lastRegisterAttempt < 2000) {
+            return "TryAgainLater";
+        }
 
-        String Result = "Nulo"; // valor inicial do resultado
-
-                if (agoratick - lastRegisterAttempt < 2000) {
-        // se a última tentativa foi há menos de 2 segundos, bloqueia
-        return Result = "TryAgainLater"; // você cria uma mensagem apropriada
-         }
-
-         lastRegisterAttempt = agoratick;
+        lastRegisterAttempt = agoratick;
 
         if (!isEmailValido(email)) {
-            Result = "InvalidEmail"; // e-mail inválido
+            Result = "InvalidEmail"; // verifica se o formato de email é valido
         }
 
         if (!isSenhaSegura(password)) {
-            Result = "InvalidPassword"; // senha inválida
+            Result = "InvalidPassword";// verifica se o formato de senha é valido
         }
-    
-       if (isEmailValido(email) && !database.userExists(email)) {
-        Result = "Incorrect";
-         Main.print("email não existe.");
-       } else if (database.userExists(email)) {
 
-         int Tentativas = database.getUserTrys(email);
-        LocalDateTime ultima = database.getUltimaTentativa(email);
+        // Verifica se usuário existe, por padrão incorret para não saber se o email ou senha é incorreto (boas práticas)
+        if (isEmailValido(email) && !database.userExists(email)) {
+            Result = "Incorrect";
+            Main.print("Email não existe.");
+        } else if (database.userExists(email)) {
+            int Tentativas = database.getUserTrys(email);
+            LocalDateTime ultima = database.getUltimaTentativa(email);
 
-        Main.print("User existe.");
+            Main.print("Usuário existe.");
+            LocalDateTime desbloqueio = ultima.plusMinutes(30);
+            LocalDateTime agora = LocalDateTime.now();
+            minutosRestantes = java.time.Duration.between(agora, desbloqueio).toMinutes();
 
-         LocalDateTime desbloqueio = ultima.plusMinutes(30); // hora que vai desbloquear
-         LocalDateTime agora = LocalDateTime.now();
-          minutosRestantes = java.time.Duration.between(agora, desbloqueio).toMinutes();
+            if (ultima.plusMinutes(30).isBefore(LocalDateTime.now())) {
+                database.resetarTentativas(email);
+                Tentativas = 5; // seta por padrão 5 tentativas após o tempo de segurança de 30 minutos
+            }
 
-         Main.print("O user tem :"+Tentativas+" tentativas restantes.");
-         Main.print("Ultima tentiva de login realizado as: "+ultima);
+            if (Tentativas <= 0) {
+                Result = "LoginBlocked"; //Se o usuario realizou todas as tentativas, o bloqueia para evitar ataques de força  bruta
+            }
+        }
 
-         if (ultima.plusMinutes(30).isBefore(LocalDateTime.now())) {
-             database.resetarTentativas(email);
-             Tentativas = 5;
-         }
-         //
-         if (Tentativas <=0) {
-            Result = "LoginBlocked";
-         };
-         //
-       };
-        // Se ambos forem válidos e o resultado ainda estiver "Nulo"
+        // Se tudo válido
+        // Essas validações evitam qualquer problema com SQL Injection ou ataques de força  bruta
         if (isSenhaSegura(password) && isEmailValido(email) && Result.equals("Nulo")) {
-          // Se os email e senhas forem válidos, realiza a busca no banco de dados para comparar o hash da senha
+            String hashArmazenado = database.getPasswordHash(email);
+            String saltArmazenado = database.getUserSalt(email);
 
-           String hashArmazenado = database.getPasswordHash(email);
-           String saltArmazenado = database.getUserSalt(email);
+            password = Criptografia.hashPassword(password, saltArmazenado);
 
-           Main.print(hashArmazenado+ " hash armazenado");
-           password = Criptografia.hashPassword(password,saltArmazenado);
-
-           Main.print(hashArmazenado+password);
-          
-
-
-           if (Criptografia.verifyPassword(password.trim(),hashArmazenado.trim())) {
-            Result = "Sucesso"; // login bem-sucedido
-             LoginOuRegister = "Login";
-               emaill = email; 
-               RememberMe = Check;
-             SendCode();
-              InterfaceUI.Panel2FA(email);
-            } else { 
+            if (Criptografia.verifyPassword(password.trim(), hashArmazenado.trim())) {
+                Result = "Sucesso";
+                LoginOuRegister = "Login";
+                emaill = email;
+                RememberMe = Check;
+                SendCode();
+                InterfaceUI.Panel2FA(email);
+            } else {
                 database.decrementarTentativa(email);
-              Main.print("Hash incorreto.");
-              Result = "Incorrect";};
+                Main.print("Hash incorreto.");
+                Result = "Incorrect";
+            }
         }
 
-        return Result; // retorna o resultado final
+        return Result;
     }
 }
