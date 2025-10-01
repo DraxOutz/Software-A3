@@ -15,7 +15,7 @@ public class SendEmail { // Define a classe SendEmail. O código fica organizado
 
         //Email do nosso software para nossos clientes receberem mensagens
         String to = email;
-        String from = "X@gmail.com"; // email !!!PORFAVOR NÃO COLOQUE O EMAIL NO GITHUB 
+        String from = "devhexawarden@gmail.com"; // email !!!PORFAVOR NÃO COLOQUE O EMAIL NO GITHUB 
         String password = "X X X X"; // senha de app do Gmail !!!PORFAVOR NÃO COLOQUE A SENHA NO GITHUB 
 
         //Define o email de destino, o email remetente e a senha de aplicativo (não é a senha real, e sim uma senha gerada no Gmail para apps).
