@@ -1,13 +1,13 @@
 package main.java;
 
+import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Random;
+import java.util.prefs.Preferences;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.security.SecureRandom;
-import java.time.Duration;
-import java.util.prefs.Preferences;
 
 /**
  * Classe AuthenticationService
@@ -167,7 +167,11 @@ public class AuthenticationService {
         Main.print("Código gerado: " + Code);
 
         // Envia o código por e-mail
-        SendEmail.Send(emaill, Code);
+        try {
+        SendEmail.Send(emaill, Code);}
+        catch (Exception e) {
+           Main.print("Algum erro na api.");
+        };
     }
 
     /**
@@ -222,6 +226,11 @@ public class AuthenticationService {
                 Logged = true;
                 Main.print("Usuário logado.");
                 if (RememberMe == true) {
+                    
+                  if (TokenVerifiy == null) {
+                    TokenVerifiy = database.getToken(emaill);
+                  }
+
                     prefs.put("remember_email", emaill);
                     prefs.put("remember_token", TokenVerifiy);
                 }
@@ -287,8 +296,8 @@ public class AuthenticationService {
             emaill = email;
             senha = password;
             LoginOuRegister = "Cadastro";
+                        InterfaceUI.Panel2FA(email);
             SendCode();
-            InterfaceUI.Panel2FA(email);
         }
 
         return Result;
@@ -359,8 +368,8 @@ public class AuthenticationService {
                 LoginOuRegister = "Login";
                 emaill = email;
                 RememberMe = Check;
+                                InterfaceUI.Panel2FA(email);
                 SendCode();
-                InterfaceUI.Panel2FA(email);
             } else {
                 database.decrementarTentativa(email);
                 Main.print("Hash incorreto.");
