@@ -8,8 +8,8 @@ package main.java;
  */
 public class Main {
 
-    // Nome do programa, armazenado como variável privada
-    private static String ProgramName = "ResourceGuard";
+    // Nome do programa, armazenado como variável privada 
+    private static String ProgramName = "HexaWarden";
 
     /**
      * Retorna o nome do programa.
