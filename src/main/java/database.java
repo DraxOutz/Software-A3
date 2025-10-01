@@ -5,8 +5,8 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDateTime;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 /**
  * Classe responsável por toda a comunicação com o banco de dados MySQL.
@@ -29,7 +29,7 @@ public class database {
     private static final String USER = "root";
     
     // Senha do banco
-    private static final String PASSWORD = "X!";  //!!!PORFAVOR NÃO COLOQUE A SENHA NO GITHUB 
+    private static final String PASSWORD = "anima123";  //!!!PORFAVOR NÃO COLOQUE A SENHA NO GITHUB 
 
     /**
      * Retorna uma conexão válida com o banco de dados.
@@ -101,6 +101,7 @@ public class database {
      * @param senha Senha em texto puro (será convertida para hash+salt).
      * @return true se o usuário foi criado com sucesso, false se deu erro.
      */
+    //Staff em valor int pois terá hierarquia 1 Suporte, 2 Administrador, 3 CEO
     public static boolean criarUsuario(String email, String senha) {
         // Gera salt e hash da senha
         String salt = Criptografia.gerarSalt();
@@ -109,8 +110,8 @@ public class database {
         // Token expira em 30 dias
         LocalDateTime expira = LocalDateTime.now().plusDays(30);
 
-        String sql = "INSERT INTO usuarios (email, senha_hash, salt, tentativas_login, ultima_tentativa, remember_token, token_expira_em) " +
-                     "VALUES (?, ?, ?, 5, NOW(), ?, ?)";
+        String sql = "INSERT INTO usuarios (email, senha_hash, salt, tentativas_login, ultima_tentativa, remember_token, token_expira_em, staff) " +
+                     "VALUES (?, ?, ?, 5, NOW(), ?, ?, ?)";
 
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -125,6 +126,8 @@ public class database {
 
             // Define data de expiração do token
             stmt.setTimestamp(5, Timestamp.valueOf(expira));
+
+  stmt.setInt(6, 0);
 
             int linhas = stmt.executeUpdate();
             return linhas > 0; // true se inseriu corretamente
@@ -240,6 +243,7 @@ public class database {
      * @param email Email do usuário.
      * @return true se o usuário existe, false caso contrário.
      */
+    
     public static boolean userExists(String email) {
         String sql = "SELECT COUNT(*) FROM usuarios WHERE email = ?";
 
@@ -293,7 +297,53 @@ public class database {
     /**
      * Método principal para testar conexão com o banco.
      */
+
+     /**
+ * Cria o banco de dados e a tabela 'usuarios' se ainda não existirem.
+ */
+
+
+
+public static void inicializarBanco() {
+    try {
+        // 1. Conecta sem banco específico
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            String sqlCreateDb = "CREATE DATABASE IF NOT EXISTS users_db";
+            try (PreparedStatement stmt = conn.prepareStatement(sqlCreateDb)) {
+                stmt.executeUpdate();
+                System.out.println("Banco de dados 'users_db' verificado/criado.");
+            }
+        }
+
+        // 2. Conecta ao banco de dados recém-criado
+        try (Connection conn = getConnection()) {
+            String sqlCreateTable = "CREATE TABLE IF NOT EXISTS usuarios (" +
+                    "id INT AUTO_INCREMENT PRIMARY KEY," +
+                    "email VARCHAR(100) NOT NULL UNIQUE," +
+                    "senha_hash VARCHAR(255) NOT NULL," +
+                    "salt VARCHAR(255) NOT NULL," +
+                    "tentativas_login INT DEFAULT 5," +
+                    "ultima_tentativa TIMESTAMP NULL," +
+                    "remember_token VARCHAR(255)," +
+                    "token_expira_em TIMESTAMP," +
+                    "staff INT DEFAULT 0" +
+                    ")";
+
+            try (PreparedStatement stmt = conn.prepareStatement(sqlCreateTable)) {
+                stmt.executeUpdate();
+                System.out.println("Tabela 'usuarios' verificada/criada.");
+            }
+        }
+
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+}
+
     public static void main(String[] args) {
+        
+        inicializarBanco();
+
         try (Connection conn = getConnection()) {
             if (conn != null) {
                 System.out.println("Conectado ao MySQL!");
