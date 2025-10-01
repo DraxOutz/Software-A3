@@ -1,4 +1,4 @@
-# ResourceGuard — Login, Registro e Segurança
+# HexaWarden — Login, Registro e Segurança
 
 ## Descrição
 O **ResourceGuard** é um sistema de autenticação seguro em Java, focado em proteger contas de usuários, gerenciar tentativas de login, permitir registro seguro e autenticação em duas etapas (2FA) via email.
@@ -119,3 +119,4 @@ O **ResourceGuard** é um sistema de autenticação seguro em Java, focado em pr
 - Código de 2FA pode ser armazenado **em memória** (temporário) ou **no banco** (persistente)  
 - Proteção básica contra SQL Injection já implementada  
 - Todas as senhas são armazenadas com hash seguro + salt único  
+
