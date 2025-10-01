@@ -1,9 +1,9 @@
 package main.java;
 
-import javax.swing.*;
 import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
+import javax.swing.*;
 /**
  * Classe InterfaceUI
  *
@@ -75,6 +75,9 @@ public class InterfaceUI {
      * 
      * @param email e-mail usado para exibir instrução
      */
+   
+     
+
         public static void Panel2FA(String email) {
 
                 // Esconde login e registro
@@ -172,6 +175,7 @@ public class InterfaceUI {
         String Result = AuthenticationService.VerifyCode(codigoDigitado);
 
         SwingUtilities.invokeLater(() -> {
+            errorLabel.setText("");
             if (!Result.equals("Sucesso")) {
                 Map<String, String> mensagens = new HashMap<>();
 
@@ -208,6 +212,7 @@ public class InterfaceUI {
      * 
      * @param frame janela principal
      */
+  
    public static void CreateRegistroPanel(JFrame frame) {
        // frame.getContentPane().removeAll();
 
@@ -317,7 +322,7 @@ public class InterfaceUI {
         registerButton.setBorder(BorderFactory.createEmptyBorder());
         buttonsPanel.add(registerButton);
 
-        JButton loginButton = new JButton("Login");
+        JButton loginButton = new JButton("Voltar");
         loginButton.setBackground(new Color(98, 0, 238));
         loginButton.setForeground(Color.WHITE);
         loginButton.setFocusPainted(false);
@@ -370,6 +375,7 @@ public class InterfaceUI {
         Main.print(Result);
 
         SwingUtilities.invokeLater(() -> {
+            errorLabel.setText("");
             if (Result.equals("Sucesso")) {
                 errorLabel.setText("Cadastrado com sucesso");
                 CadastroPanel.setVisible(false);
@@ -479,6 +485,8 @@ public class InterfaceUI {
         passwordField.setBorder(BorderFactory.createLineBorder(new Color(100, 100, 100), 2, true));
         leftPanel.add(passwordField, gbc);
 
+       
+
         // Remember me + Forgot
         gbc.gridy++;
         gbc.gridwidth = 1;
@@ -507,6 +515,8 @@ public class InterfaceUI {
         errorLabel.setForeground(Color.RED);
         errorLabel.setHorizontalAlignment(SwingConstants.CENTER);
         leftPanel.add(errorLabel, gbc);
+
+       
 
         // Botões Login e Cadastrar
         gbc.gridy++;
@@ -568,6 +578,7 @@ public class InterfaceUI {
       String Result = AuthenticationService.ResetPasswordEvent(email);
 
         SwingUtilities.invokeLater(() -> {
+            errorLabel.setText("");
               if (Result.equals("Sucesso")) {
 
               }else{
