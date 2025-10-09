@@ -23,6 +23,11 @@ import java.util.List;
  */
 public class database {
     
+    // DEBUG MODE - Configuração flexível
+    private static final boolean DEBUG_MODE = 
+        "true".equals(System.getenv("DEBUG_MODE")) || 
+        "true".equals(System.getProperty("debug.mode"));
+    
     // URL de conexão com o banco de dados MySQL
     private static final String URL = "jdbc:mysql://localhost:3306/users_db";
     
@@ -62,7 +67,9 @@ public class database {
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            if (DEBUG_MODE) {
+                Main.print("❌ Erro ao buscar hash: " + e.getMessage());
+            }
         }
 
         return null; // usuário não encontrado
@@ -88,7 +95,9 @@ public class database {
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            if (DEBUG_MODE) {
+                Main.print("❌ Erro ao buscar token: " + e.getMessage());
+            }
         }
 
         return null;
@@ -127,14 +136,20 @@ public class database {
 
             // Define data de expiração do token
             stmt.setTimestamp(5, Timestamp.valueOf(expira));
-
-  stmt.setInt(6, 0);
+            stmt.setInt(6, 0);
 
             int linhas = stmt.executeUpdate();
+            
+            if (DEBUG_MODE && linhas > 0) {
+                Main.print("✅ Usuário criado: " + email);
+            }
+            
             return linhas > 0; // true se inseriu corretamente
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            if (DEBUG_MODE) {
+                Main.print("❌ Erro ao criar usuário: " + e.getMessage());
+            }
             return false; // provavelmente email já existe
         }
     }
@@ -163,50 +178,61 @@ public class database {
             stmt.setString(6, email);                      // WHERE email = ?
     
             int linhas = stmt.executeUpdate();
+            
+            if (DEBUG_MODE && linhas > 0) {
+                Main.print("✅ Senha atualizada para: " + email);
+            }
+            
             return linhas > 0; // true se atualizou corretamente
     
         } catch (SQLException e) {
-            e.printStackTrace();
+            if (DEBUG_MODE) {
+                Main.print("❌ Erro ao atualizar usuário: " + e.getMessage());
+            }
             return false;
         }
     }
     
 
     public static void saveUserInterests(int userId, List<String> interests) {
-    // 1. Abertura da Conexão
-    try (Connection conn = getConnection()) {
-        
-        // PASSO A: DELETA os interesses antigos. 
-        // Isso garante que se ele mudou de 2 para 1, ou mudou quais escolheu, a base reflete o atual.
-        String sqlDelete = "DELETE FROM usuario_interesses WHERE usuario_id = ?";
-        try (PreparedStatement stmtDelete = conn.prepareStatement(sqlDelete)) {
-            stmtDelete.setInt(1, userId);
-            stmtDelete.executeUpdate();
-        }
-
-        // PASSO B: INSERE os novos interesses em lote (BATCH).
-        String sqlInsert = "INSERT INTO usuario_interesses (usuario_id, interesse) VALUES (?, ?)";
-        try (PreparedStatement stmtInsert = conn.prepareStatement(sqlInsert)) {
+        // 1. Abertura da Conexão
+        try (Connection conn = getConnection()) {
             
-            for (String interesse : interests) {
-                // Prepara os valores para cada linha: ID do usuário e o texto do interesse
-                stmtInsert.setInt(1, userId);
-                stmtInsert.setString(2, interesse);
-                
-                // Adiciona este comando de INSERT ao lote (batch)
-                stmtInsert.addBatch(); 
+            // PASSO A: DELETA os interesses antigos. 
+            // Isso garante que se ele mudou de 2 para 1, ou mudou quais escolheu, a base reflete o atual.
+            String sqlDelete = "DELETE FROM usuario_interesses WHERE usuario_id = ?";
+            try (PreparedStatement stmtDelete = conn.prepareStatement(sqlDelete)) {
+                stmtDelete.setInt(1, userId);
+                stmtDelete.executeUpdate();
             }
-            
-            // Executa todas as inserções de uma vez
-            int[] results = stmtInsert.executeBatch();
-            System.out.println("✅ Interesses salvos para o usuário " + userId + ". Total de registros inseridos: " + results.length);
-        }
 
-    } catch (SQLException e) {
-        e.printStackTrace();
-        System.err.println("❌ Erro ao salvar interesses: " + e.getMessage());
+            // PASSO B: INSERE os novos interesses em lote (BATCH).
+            String sqlInsert = "INSERT INTO usuario_interesses (usuario_id, interesse) VALUES (?, ?)";
+            try (PreparedStatement stmtInsert = conn.prepareStatement(sqlInsert)) {
+                
+                for (String interesse : interests) {
+                    // Prepara os valores para cada linha: ID do usuário e o texto do interesse
+                    stmtInsert.setInt(1, userId);
+                    stmtInsert.setString(2, interesse);
+                    
+                    // Adiciona este comando de INSERT ao lote (batch)
+                    stmtInsert.addBatch(); 
+                }
+                
+                // Executa todas as inserções de uma vez
+                int[] results = stmtInsert.executeBatch();
+                
+                if (DEBUG_MODE) {
+                    Main.print("✅ Interesses salvos para usuário " + userId + ". Total: " + results.length);
+                }
+            }
+
+        } catch (SQLException e) {
+            if (DEBUG_MODE) {
+                Main.print("❌ Erro ao salvar interesses: " + e.getMessage());
+            }
+        }
     }
-}
 
     /**
      * Retorna o salt do usuário (usado para validar a senha).
@@ -228,13 +254,15 @@ public class database {
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            if (DEBUG_MODE) {
+                Main.print("❌ Erro ao buscar salt: " + e.getMessage());
+            }
         }
 
         return null;
     }
 
-    public static int getUserId(String email) { // 1. Mudar o tipo de retorno para int
+    public static int getUserId(String email) {
         String sql = "SELECT id FROM usuarios WHERE email = ?";
     
         try (Connection conn = getConnection();
@@ -244,15 +272,15 @@ public class database {
             ResultSet rs = stmt.executeQuery();
     
             if (rs.next()) {
-                // 2. Usar getInt() para pegar o valor numérico
                 return rs.getInt("id"); 
             }
     
         } catch (SQLException e) {
-            e.printStackTrace();
+            if (DEBUG_MODE) {
+                Main.print("❌ Erro ao buscar ID: " + e.getMessage());
+            }
         }
     
-        // 3. Retornar um valor padrão (como -1) para indicar que o usuário não foi encontrado
         return -1; 
     }
 
@@ -276,7 +304,9 @@ public class database {
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            if (DEBUG_MODE) {
+                Main.print("❌ Erro ao buscar tentativas: " + e.getMessage());
+            }
         }
 
         return 0;
@@ -297,12 +327,14 @@ public class database {
             stmt.setString(1, email);
             int linhas = stmt.executeUpdate();
 
-            if (linhas > 0) {
-                System.out.println("Tentativa decrementada para o usuário: " + email);
+            if (DEBUG_MODE && linhas > 0) {
+                Main.print("🔻 Tentativa decrementada para: " + email);
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            if (DEBUG_MODE) {
+                Main.print("❌ Erro ao decrementar tentativa: " + e.getMessage());
+            }
         }
     }
 
@@ -320,12 +352,14 @@ public class database {
             stmt.setString(1, email);
             int linhas = stmt.executeUpdate();
 
-            if (linhas > 0) {
-                Main.print("Tentativas resetadas para o usuário: " + email);
+            if (DEBUG_MODE && linhas > 0) {
+                Main.print("🔄 Tentativas resetadas para: " + email);
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            if (DEBUG_MODE) {
+                Main.print("❌ Erro ao resetar tentativas: " + e.getMessage());
+            }
         }
     }
 
@@ -351,7 +385,9 @@ public class database {
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            if (DEBUG_MODE) {
+                Main.print("❌ Erro ao verificar usuário: " + e.getMessage());
+            }
         }
 
         return false;
@@ -380,111 +416,112 @@ public class database {
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            if (DEBUG_MODE) {
+                Main.print("❌ Erro ao buscar última tentativa: " + e.getMessage());
+            }
         }
 
         return null;
     }
 
-    /**
-     * Método principal para testar conexão com o banco.
-     */
-
-     /**
- * Cria o banco de dados e a tabela 'usuarios' se ainda não existirem.
- */
-
- public static boolean userHasInterests(int userId) {
-    // Conta quantas linhas existem na tabela de interesses para este usuário
-    String sql = "SELECT COUNT(*) FROM usuario_interesses WHERE usuario_id = ?";
-    
-    try (Connection conn = getConnection();
-         PreparedStatement stmt = conn.prepareStatement(sql)) {
+    public static boolean userHasInterests(int userId) {
+        // Conta quantas linhas existem na tabela de interesses para este usuário
+        String sql = "SELECT COUNT(*) FROM usuario_interesses WHERE usuario_id = ?";
         
-        stmt.setInt(1, userId);
-        try (ResultSet rs = stmt.executeQuery()) {
-            if (rs.next()) {
-                // Se COUNT(*) for maior que 0, o usuário tem interesses
-                return rs.getInt(1) > 0;
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, userId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    // Se COUNT(*) for maior que 0, o usuário tem interesses
+                    return rs.getInt(1) > 0;
+                }
             }
+        } catch (SQLException e) {
+            if (DEBUG_MODE) {
+                Main.print("❌ Erro ao verificar interesses: " + e.getMessage());
+            }
+            return false; 
         }
-    } catch (SQLException e) {
-        e.printStackTrace();
-        // Em caso de erro, por segurança, assume que ele não tem interesses,
-        // mas o ideal é tratar o erro ou relançá-lo.
-        return false; 
+        return false;
     }
-    return false;
-}
 
-public static void inicializarBanco() {
-    try {
-        // 1. Conecta sem banco específico
-        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
-            String sqlCreateDb = "CREATE DATABASE IF NOT EXISTS users_db";
-            try (PreparedStatement stmt = conn.prepareStatement(sqlCreateDb)) {
-                stmt.executeUpdate();
-                System.out.println("Banco de dados 'users_db' verificado/criado.");
+    public static void inicializarBanco() {
+        try {
+            // 1. Conecta sem banco específico
+            try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+                String sqlCreateDb = "CREATE DATABASE IF NOT EXISTS users_db";
+                try (PreparedStatement stmt = conn.prepareStatement(sqlCreateDb)) {
+                    stmt.executeUpdate();
+                    if (DEBUG_MODE) {
+                        Main.print("✅ Banco 'users_db' verificado/criado.");
+                    }
+                }
             }
-        }
 
-        // 2. Conecta ao banco de dados recém-criado
-        try (Connection conn = getConnection()) {
-            String sqlCreateTable = "CREATE TABLE IF NOT EXISTS usuarios (" +
+            // 2. Conecta ao banco de dados recém-criado
+            try (Connection conn = getConnection()) {
+                String sqlCreateTable = "CREATE TABLE IF NOT EXISTS usuarios (" +
+                        "id INT AUTO_INCREMENT PRIMARY KEY," +
+                        "email VARCHAR(100) NOT NULL UNIQUE," +
+                        "senha_hash VARCHAR(255) NOT NULL," +
+                        "salt VARCHAR(255) NOT NULL," +
+                        "tentativas_login INT DEFAULT 5," +
+                        "ultima_tentativa TIMESTAMP NULL," +
+                        "remember_token VARCHAR(255)," +
+                        "token_expira_em TIMESTAMP," +
+                        "staff INT DEFAULT 0" +
+                        ")";
+
+                try (PreparedStatement stmt = conn.prepareStatement(sqlCreateTable)) {
+                    stmt.executeUpdate();
+                    if (DEBUG_MODE) {
+                        Main.print("✅ Tabela 'usuarios' verificada/criada.");
+                    }
+                }
+            }
+
+            // 3. Cria a tabela de interesses
+            try (Connection conn = getConnection()) {
+                String sqlCreateTableInterests = "CREATE TABLE IF NOT EXISTS usuario_interesses (" +
                     "id INT AUTO_INCREMENT PRIMARY KEY," +
-                    "email VARCHAR(100) NOT NULL UNIQUE," +
-                    "senha_hash VARCHAR(255) NOT NULL," +
-                    "salt VARCHAR(255) NOT NULL," +
-                    "tentativas_login INT DEFAULT 5," +
-                    "ultima_tentativa TIMESTAMP NULL," +
-                    "remember_token VARCHAR(255)," +
-                    "token_expira_em TIMESTAMP," +
-                    "staff INT DEFAULT 0" +
+                    "usuario_id INT NOT NULL," +
+                    "interesse VARCHAR(100) NOT NULL," +
+                    "FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE" +
                     ")";
 
-            try (PreparedStatement stmt = conn.prepareStatement(sqlCreateTable)) {
-                stmt.executeUpdate();
-                System.out.println("Tabela 'usuarios' verificada/criada.");
+                try (PreparedStatement stmt = conn.prepareStatement(sqlCreateTableInterests)) {
+                    stmt.executeUpdate();
+                    if (DEBUG_MODE) {
+                        Main.print("✅ Tabela 'usuario_interesses' verificada/criada.");
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+            if (DEBUG_MODE) {
+                Main.print("❌ Erro ao inicializar banco: " + e.getMessage());
             }
         }
-
- // 3. Conecta ao banco de dados recém-criado e cria a tabela de LIGAÇÃO de INTERESSES
- try (Connection conn = getConnection()) {
-            
-    // Tabela que armazena CADA interesse, ligado a um ID de usuário.
-    String sqlCreateTableInterests = "CREATE TABLE IF NOT EXISTS usuario_interesses (" +
-        "id INT AUTO_INCREMENT PRIMARY KEY," +
-        "usuario_id INT NOT NULL," + // ID do usuário que selecionou o interesse
-        "interesse VARCHAR(100) NOT NULL," + // O nome do interesse
-        // CHAVE ESTRANGEIRA: Garante que o usuario_id existe na tabela 'usuarios'
-        "FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE" +
-        ")";
-
-    try (PreparedStatement stmt = conn.prepareStatement(sqlCreateTableInterests)) {
-        stmt.executeUpdate();
-        System.out.println("Tabela 'usuario_interesses' verificada/criada.");
     }
-}
-
-    } catch (SQLException e) {
-        e.printStackTrace();
-    }
-
-    
-}
 
     public static void StartDataBase() {
-        
         inicializarBanco();
 
         try (Connection conn = getConnection()) {
             if (conn != null) {
-                System.out.println("Conectado ao MySQL!");
-                criarUsuario("devhexawarden@gmail.com","DevWarden122!" );
+                Main.print("✅ Conectado ao MySQL!");
+                
+                // Só criar usuário se não existir
+                if (!userExists("devhexawarden@gmail.com")) {
+                    criarUsuario("devhexawarden@gmail.com", "DevWarden122!");
+                } else if (DEBUG_MODE) {
+                    Main.print("ℹ️ Usuário de teste já existe.");
+                }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            Main.print("❌ Erro na conexão: " + e.getMessage());
         }
     }
 }
-

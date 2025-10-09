@@ -1,42 +1,34 @@
 package main.java;
 
 /**
- * Classe Main
- *
- * Esta é a classe principal do programa "ResourceGuard". 
- * Contém o método main que inicia a aplicação e alguns utilitários.
+ * Classe principal do programa HexaWarden.
+ * Responsável pela inicialização e utilitários gerais.
  */
 public class Main {
-
-    // Nome do programa, armazenado como variável privada 
-    private static String ProgramName = "HexaWarden";
+    private static final String PROGRAM_NAME = "HexaWarden";
+    
+   private static final boolean DEBUG_MODE = 
+        "true".equals(System.getenv("DEBUG_MODE")) || 
+        "true".equals(System.getProperty("debug.mode"));
 
     /**
      * Retorna o nome do programa.
-     *
-     * @return Uma String com o nome do programa.
      */
     public static String GetProgramName() {
-        return ProgramName;
+        return PROGRAM_NAME;
     }
 
-    /**
-     * Método principal que inicia a execução do programa.
-     *
-     * @param args Argumentos passados pela linha de comando (não utilizados aqui).
-     */
     public static void main(String[] args) {
-        print("Hello, World!");          // imprime uma mensagem de teste
-        InterfaceUI.CreateInterface();   // chama a criação da interface gráfica
-        database.StartDataBase(); // chama a database
+        print("Iniciando HexaWarden...");
+        InterfaceUI.CreateInterface();   // Seguindo convenção camelCase
+        database.StartDataBase();        // Seguindo convenção camelCase
     }
 
     /**
-     * Método utilitário para imprimir mensagens no console de erro.
-     *
-     * @param vlr A mensagem a ser exibida.
+     * Utilitário para impressão no console de erro.
      */
-    public static void print(String vlr) {
-        System.err.println(vlr); // imprime no console de erro
+    public static void print(Object value) {
+        if (DEBUG_MODE) {
+        System.err.println(String.valueOf(value));}
     }
 }

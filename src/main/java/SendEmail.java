@@ -14,8 +14,14 @@ public class SendEmail { // Define a classe SendEmail. O código fica organizado
   }
 
     public static void Send(String email, String code) {
+
+          if (email == null || email.trim().isEmpty()) {
+         Main.print("Email não pode ser vazio");
+         return;
+             }
+
         String to = email;
-        String from = "devhexawarden@gmail.com"; 
+        String from = security.Password.EMAIL; 
         String password = security.Password.PASSWORDEMAIL; 
     
         Properties props = new Properties();

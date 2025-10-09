@@ -62,7 +62,7 @@ public class HaveBeenPawed {
     }
     
     // Método principal para testar
-    public static boolean VerifyPawed(String senha) {
+    public static boolean VerifyPwned(String senha) {
         
          return haveBeenPawed(senha);
         

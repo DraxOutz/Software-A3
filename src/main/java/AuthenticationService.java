@@ -37,6 +37,9 @@ import java.util.regex.Pattern;
  */
 public class AuthenticationService {
 
+    // DEBUG MODE - Configuração flexível
+  
+
     // -----------------------------
     // REGEX PARA VALIDAR EMAIL
     // -----------------------------
@@ -82,12 +85,12 @@ public class AuthenticationService {
     // -----------------------------
     private static long minutosRestantes;
     private static long lastRegisterAttempt = 0;
-    private static Boolean Verified = false;
+    private static boolean verified = false; // ✅ boolean primitivo
     private static String Code;
     private static String LoginOuRegister;
     static boolean Logged = false;
     private static LocalDateTime CodeGeneratedTime;
-    private static Boolean RememberMe;
+    private static boolean rememberMe; // ✅ boolean primitivo
     static public String TokenVerifiy;
 
     private static String emaill, senha;
@@ -132,7 +135,7 @@ public class AuthenticationService {
 
      public static void OpenChoseOptions() {
         int userId = database.getUserId(emaill); 
-        if (database.userHasInterests(userId) == false) {
+        if (!database.userHasInterests(userId)) { // ✅ boolean primitivo
         InterfaceUI.ChooseOptions();
         } else {
          Main.print("O user ja possui um interesse, prossiga a home.");
@@ -192,7 +195,11 @@ public class AuthenticationService {
         Code = sb.toString();
         CodeGeneratedTime = LocalDateTime.now();
 
-        Main.print("Código gerado: " + Code);
+        // ✅ DEBUG MODE - Só mostra código se debug ativo
+        
+            Main.print("🔐 [DEBUG] Código gerado: " + Code);
+            Main.print("⏰ [DEBUG] Expira em: " + CodeGeneratedTime.plusMinutes(30));
+        
 
         // Envia o código por e-mail
         try {
@@ -245,7 +252,7 @@ public class AuthenticationService {
         Result = "InvalidPassword";
      };
      //
-     if (HaveBeenPawed.haveBeenPawed(password1)) {
+     if (HaveBeenPawed.VerifyPwned(password1)) { // ✅ Nome corrigido
         Result = "PwnedPassword";
      };
      //
@@ -272,8 +279,8 @@ public class AuthenticationService {
             return "Expirado";
         }
 
-        // Se for login, checa tentativas
-        if (LoginOuRegister == "Login") {
+        // Se for login, checa tentativas - ✅ CORRIGIDO: equals()
+        if ("Login".equals(LoginOuRegister)) {
             int Tentativas = database.getUserTrys(emaill);
             if (Tentativas <= 0) {
                 return "LoginBlocked";
@@ -282,17 +289,19 @@ public class AuthenticationService {
 
         // Comparação do código
         if (codigoDigitado.equals(Code)) {
-            Verified = true;
+            verified = true;
 
-            if (LoginOuRegister.equals("Cadastro")) {
+            // ✅ CORRIGIDO: equals() em todas as comparações
+            if ("Cadastro".equals(LoginOuRegister)) {
                 RegistroCriar(emaill, senha, senha);
                 Main.print("Usuário criado no registro.");
                 OpenChoseOptions();
-            } else if (LoginOuRegister.equals("Login")) {
+            } else if ("Login".equals(LoginOuRegister)) {
                 Logged = true;
                 Main.print("Usuário logado.");
                 OpenChoseOptions();
-                if (RememberMe == true) {
+                // ✅ CORRIGIDO: boolean primitivo
+                if (rememberMe) {
                     
                   if (TokenVerifiy == null) {
                     TokenVerifiy = database.getToken(emaill);
@@ -308,7 +317,8 @@ public class AuthenticationService {
 
             return "Sucesso";
         } else {
-            if (LoginOuRegister == "Login" || LoginOuRegister == "ResetPassword") {
+            // ✅ CORRIGIDO: equals()
+            if ("Login".equals(LoginOuRegister) || "ResetPassword".equals(LoginOuRegister)) {
                 database.decrementarTentativa(emaill);
             }
             return "Incorreto";
@@ -359,11 +369,12 @@ public class AuthenticationService {
             Result = "Incorrect";
         }
 
-        if (HaveBeenPawed.VerifyPawed(password)) {
+        if (HaveBeenPawed.VerifyPwned(password)) { // ✅ Nome corrigido
             Result = "PwnedPassword";
         }
 
-        if (Result.equals("Nulo") && Verified == true) {
+        // ✅ CORRIGIDO: boolean primitivo
+        if (Result.equals("Nulo") && verified) {
             database.criarUsuario(email, password);
             Result = "Sucesso";
         } else if (Result.equals("Nulo")) {
@@ -441,7 +452,7 @@ public class AuthenticationService {
                 Result = "Sucesso";
                 LoginOuRegister = "Login";
                 emaill = email;
-                RememberMe = Check;
+                rememberMe = Check; // ✅ boolean primitivo
                                 InterfaceUI.Panel2FA(email);
                 SendCode();
             } else {
