@@ -19,6 +19,13 @@ public class Main {
     }
 
     public static void main(String[] args) {
+        boolean isSingle = SingleInstance.lockInstance("HexaWarden.lock");
+
+    if (!isSingle) {
+        System.err.println("Já existe uma instância do HexaWarden rodando.");
+        System.exit(1); // encerra o programa
+    }
+    
         print("Iniciando HexaWarden...");
         InterfaceUI.CreateInterface();   // Seguindo convenção camelCase
         database.StartDataBase();        // Seguindo convenção camelCase

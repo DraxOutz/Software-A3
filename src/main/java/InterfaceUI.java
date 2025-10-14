@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.swing.*;
+import java.net.URL;
 /**
  * Classe InterfaceUI
  *
@@ -49,6 +50,27 @@ public class InterfaceUI {
         frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
         frame.setMinimumSize(new Dimension((int) (screenSize.width * 0.5), (int) (screenSize.height * 0.5)));
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+         // --- Adicionar o Ícone ---
+        try {
+            // 1. Define o caminho do recurso (relativo ao seu classpath)
+            // Ajuste o caminho se a imagem não estiver na pasta 'images'
+            URL iconURL = InterfaceUI.class.getResource("/main/resources/logo.png");
+
+            if (iconURL != null) {
+                // 2. Carrega a imagem
+                Image icon = Toolkit.getDefaultToolkit().getImage(iconURL);
+                
+                // 3. Define o ícone
+                frame.setIconImage(icon);
+            } else {
+                System.err.println("Aviso: Ícone não encontrado no caminho do recurso.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Erro ao definir o ícone do JFrame.");
+        }
+        // -------------------------
 
         frame.getContentPane().setBackground(new Color(30, 30, 30));
         frame.setLayout(new BorderLayout());
@@ -127,9 +149,9 @@ public class InterfaceUI {
         JPanel buttonPanel = new JPanel(new GridLayout(1, 3, 15, 5)); 
         buttonPanel.setOpaque(false);
     
-        JButton IARes = new JButton("IA Responsável");
-        JButton CiberSeg = new JButton("Cibersegurança");
-        JButton Privacidade = new JButton("Privacidade & Ética Digital");
+        JButton IARes = new RoundedButton("IA Responsável");
+        JButton CiberSeg = new RoundedButton("Cibersegurança");
+        JButton Privacidade = new RoundedButton("Privacidade & Ética Digital");
     
         // Definição de uma altura mais adequada para os botões.
         int preferredButtonHeight = (int) (totalHeight * 0.15); 
@@ -192,7 +214,7 @@ public class InterfaceUI {
     
         // Botão Confirmar
         gbc.gridy++;
-        JButton confirmButton = new JButton("Confirmar");
+        JButton confirmButton = new RoundedButton("Confirmar");
         confirmButton.setBackground(new Color(46, 125, 50)); // verde escuro
         confirmButton.setForeground(Color.WHITE);
         confirmButton.setFocusPainted(false);
@@ -350,7 +372,7 @@ public class InterfaceUI {
  buttonsPanel.setBackground(Color.WHITE);
  buttonsPanel.setPreferredSize(new Dimension(250, 40));
 
-         JButton registerButton = new JButton("Cadastrar-se");
+         JButton registerButton = new RoundedButton("Cadastrar-se");
  registerButton.setBackground(new Color(98, 0, 238));
  registerButton.setForeground(Color.WHITE);
  registerButton.setFocusPainted(false);
@@ -358,7 +380,7 @@ public class InterfaceUI {
  registerButton.setBorder(BorderFactory.createEmptyBorder());
  buttonsPanel.add(registerButton);
 
- JButton loginButton = new JButton("Voltar");
+ JButton loginButton = new RoundedButton("Voltar");
  loginButton.setBackground(new Color(98, 0, 238));
  loginButton.setForeground(Color.WHITE);
  loginButton.setFocusPainted(false);
@@ -493,7 +515,7 @@ new Thread(() -> {
     // Botão confirmar
     gbc.gridy++;
     gbc.gridwidth = 1;
-    JButton confirmButton = new JButton("Confirmar");
+    JButton confirmButton = new RoundedButton("Confirmar");
     confirmButton.setBackground(new Color(46, 125, 50)); // verde escuro
     confirmButton.setForeground(Color.WHITE);
     confirmButton.setFocusPainted(false);
@@ -502,7 +524,7 @@ new Thread(() -> {
 
     // Botão cancelar
     gbc.gridx = 1;
-    JButton cancelButton = new JButton("Cancelar");
+    JButton cancelButton = new RoundedButton("Cancelar");
     cancelButton.setBackground(Color.GRAY);
     cancelButton.setForeground(Color.WHITE);
     cancelButton.setFocusPainted(false);
@@ -670,7 +692,7 @@ new Thread(() -> {
         buttonsPanel.setBackground(Color.WHITE);
         buttonsPanel.setPreferredSize(new Dimension(250, 40));
 
-                JButton registerButton = new JButton("Cadastrar-se");
+                JButton registerButton = new RoundedButton("Cadastrar-se");
         registerButton.setBackground(new Color(98, 0, 238));
         registerButton.setForeground(Color.WHITE);
         registerButton.setFocusPainted(false);
@@ -678,7 +700,7 @@ new Thread(() -> {
         registerButton.setBorder(BorderFactory.createEmptyBorder());
         buttonsPanel.add(registerButton);
 
-        JButton loginButton = new JButton("Voltar");
+        JButton loginButton = new RoundedButton("Voltar");
         loginButton.setBackground(new Color(98, 0, 238));
         loginButton.setForeground(Color.WHITE);
         loginButton.setFocusPainted(false);
@@ -694,9 +716,33 @@ new Thread(() -> {
         rightPanel.setBackground(new Color(98, 0, 238));
         rightPanel.setLayout(new BorderLayout());
 
-        JLabel templateLabel = new JLabel("<html><div style='color:white; padding:20px; font-size:16px;'>Aqui você pode colocar uma imagem ou texto de boas-vindas, promoções ou instruções do sistema.</div></html>");
-        templateLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        rightPanel.add(templateLabel, BorderLayout.CENTER);
+        URL iconURL = InterfaceUI.class.getResource("/main/resources/painel-cadastro.png");
+        
+        if (iconURL != null) {
+            ImageIcon originalIcon = new ImageIcon(iconURL);
+            
+            JLabel templateLabel = new JLabel();
+            templateLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        
+            // Adiciona o JLabel ao painel (antes de redimensionar)
+            rightPanel.add(templateLabel, BorderLayout.CENTER);
+        
+            // Listener para redimensionar a imagem quando o rightPanel mudar de tamanho
+            rightPanel.addComponentListener(new java.awt.event.ComponentAdapter() {
+                public void componentResized(java.awt.event.ComponentEvent evt) {
+                    int width = rightPanel.getWidth();
+                    int height = rightPanel.getHeight();
+                    if (width > 0 && height > 0) {
+                        // Redimensiona a imagem para o tamanho do rightPanel
+                        Image scaledImage = originalIcon.getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);
+                        templateLabel.setIcon(new ImageIcon(scaledImage));
+                    }
+                }
+            });
+        
+        } else {
+            System.err.println("Imagem não encontrada!");
+        }
 
         // ================= Monta painel principal =================
         mainPanel.add(leftPanel);
@@ -856,7 +902,7 @@ new Thread(() -> {
 
         gbc.gridx = 1;
         gbc.anchor = GridBagConstraints.EAST;
-        JButton forgotButton = new JButton("Esqueceu a senha?");
+        JButton forgotButton = new RoundedButton("Esqueceu a senha?");
         forgotButton.setBorderPainted(false);
         forgotButton.setContentAreaFilled(false);
         forgotButton.setForeground(new Color(153, 0, 238));
@@ -882,7 +928,7 @@ new Thread(() -> {
         buttonsPanel.setBackground(Color.WHITE);
         buttonsPanel.setPreferredSize(new Dimension(250, 40));
 
-        JButton loginButton = new JButton("Login");
+        JButton loginButton = new RoundedButton("Login");
         loginButton.setBackground(new Color(98, 0, 238));
         loginButton.setForeground(Color.WHITE);
         loginButton.setFocusPainted(false);
@@ -890,7 +936,7 @@ new Thread(() -> {
         loginButton.setBorder(BorderFactory.createEmptyBorder());
         buttonsPanel.add(loginButton);
 
-        JButton registerButton = new JButton("Cadastrar-se");
+        JButton registerButton = new RoundedButton("Cadastrar-se");
         registerButton.setBackground(new Color(98, 0, 238));
         registerButton.setForeground(Color.WHITE);
         registerButton.setFocusPainted(false);
@@ -905,9 +951,33 @@ new Thread(() -> {
         rightPanel.setBackground(new Color(98, 0, 238));
         rightPanel.setLayout(new BorderLayout());
 
-        JLabel templateLabel = new JLabel("<html><div style='color:white; padding:20px; font-size:16px;'>Colocar uma imagem ou texto de boas-vindas, promoções ou instruções do sistema.</div></html>");
-        templateLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        rightPanel.add(templateLabel, BorderLayout.CENTER);
+        URL iconURL = InterfaceUI.class.getResource("/main/resources/painel-login.png");
+        
+        if (iconURL != null) {
+            ImageIcon originalIcon = new ImageIcon(iconURL);
+            
+            JLabel templateLabel = new JLabel();
+            templateLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        
+            // Adiciona o JLabel ao painel (antes de redimensionar)
+            rightPanel.add(templateLabel, BorderLayout.CENTER);
+        
+            // Listener para redimensionar a imagem quando o rightPanel mudar de tamanho
+            rightPanel.addComponentListener(new java.awt.event.ComponentAdapter() {
+                public void componentResized(java.awt.event.ComponentEvent evt) {
+                    int width = rightPanel.getWidth();
+                    int height = rightPanel.getHeight();
+                    if (width > 0 && height > 0) {
+                        // Redimensiona a imagem para o tamanho do rightPanel
+                        Image scaledImage = originalIcon.getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);
+                        templateLabel.setIcon(new ImageIcon(scaledImage));
+                    }
+                }
+            });
+        
+        } else {
+            System.err.println("Imagem não encontrada!");
+        }
 
         // ================= Monta painel principal =================
         mainPanel.add(leftPanel);
