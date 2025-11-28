@@ -1,5 +1,6 @@
 package main.java;
 
+import java.awt.Image;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -7,7 +8,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import javax.swing.ImageIcon;
+
+import main.java.InterfaceUI.Post;
 
 /**
  * Classe responsável por toda a comunicação com o banco de dados MySQL.
@@ -111,6 +119,9 @@ public class database {
      * @param senha Senha em texto puro (será convertida para hash+salt).
      * @return true se o usuário foi criado com sucesso, false se deu erro.
      */
+
+
+     
     //Staff em valor int pois terá hierarquia 1 Suporte, 2 Administrador, 3 CEO
     public static boolean criarUsuario(String email, String senha) {
         // Gera salt e hash da senha
@@ -153,6 +164,49 @@ public class database {
             return false; // provavelmente email já existe
         }
     }
+
+    public static boolean updatePost(int id, String title, String message, String category, ImageIcon image) {
+
+        String sql = "UPDATE posts SET title = ?, category = ?, message = ?, image = ? WHERE id = ?";
+    
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+    
+            stmt.setString(1, title);
+            stmt.setString(2, category);
+            stmt.setString(3, message);
+    
+            if (image != null) {
+                // Converte imagem para bytes
+                java.awt.Image img = image.getImage();
+                java.awt.image.BufferedImage bImage = new java.awt.image.BufferedImage(
+                        img.getWidth(null),
+                        img.getHeight(null),
+                        java.awt.image.BufferedImage.TYPE_INT_RGB
+                );
+    
+                java.awt.Graphics2D g = bImage.createGraphics();
+                g.drawImage(img, 0, 0, null);
+                g.dispose();
+    
+                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                javax.imageio.ImageIO.write(bImage, "png", baos);
+    
+                stmt.setBytes(4, baos.toByteArray());
+            } else {
+                stmt.setNull(4, java.sql.Types.BLOB);
+            }
+    
+            stmt.setInt(5, id);
+    
+            return stmt.executeUpdate() > 0;
+    
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
 
     public static boolean updateUsuario(String email, String senha) {
         // Gera salt e hash da senha
@@ -343,6 +397,9 @@ public class database {
      * 
      * @param email Email do usuário.
      */
+
+     
+
     public static void resetarTentativas(String email) {
         String sql = "UPDATE usuarios SET tentativas_login = 5, ultima_tentativa = NULL WHERE email = ?";
 
@@ -424,6 +481,75 @@ public class database {
         return null;
     }
 
+    public static boolean addLike(String userEmail, int postId) {
+        String sql = "INSERT IGNORE INTO post_likes (user_email, post_id) VALUES (?, ?)";
+    
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+    
+            stmt.setString(1, userEmail);
+            stmt.setInt(2, postId);
+    
+            return stmt.executeUpdate() > 0; // só será true se adicionou
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public static void removeLike(String userEmail, int postId) {
+        String sql = "DELETE FROM post_likes WHERE user_email = ? AND post_id = ?";
+    
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+    
+            stmt.setString(1, userEmail);
+            stmt.setInt(2, postId);
+            stmt.executeUpdate();
+    
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static int getLikes(int postId) {
+        String sql = "SELECT COUNT(*) FROM post_likes WHERE post_id = ?";
+    
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+    
+            stmt.setInt(1, postId);
+            ResultSet rs = stmt.executeQuery();
+    
+            if (rs.next()) return rs.getInt(1);
+    
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    
+        return 0;
+    }
+
+    public static boolean userLiked(String email, int postId) {
+        String sql = "SELECT COUNT(*) FROM post_likes WHERE user_email = ? AND post_id = ?";
+    
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+    
+            stmt.setString(1, email);
+            stmt.setInt(2, postId);
+            ResultSet rs = stmt.executeQuery();
+    
+            if (rs.next()) return rs.getInt(1) > 0;
+    
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    
+        return false;
+    }
+    
+
     public static boolean userHasInterests(int userId) {
         // Conta quantas linhas existem na tabela de interesses para este usuário
         String sql = "SELECT COUNT(*) FROM usuario_interesses WHERE usuario_id = ?";
@@ -446,6 +572,299 @@ public class database {
         }
         return false;
     }
+
+    public static void savePost(String author, String title, String category, String message, byte[] imageBytes) {
+        String sql = "INSERT INTO posts (author, title, category, message, image) VALUES (?, ?, ?, ?, ?)";
+    
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+    
+            stmt.setString(1, author);
+            stmt.setString(2, title);
+            stmt.setString(3, category);
+            stmt.setString(4, message);
+            stmt.setBytes(5, imageBytes);
+    
+            stmt.executeUpdate();
+    
+            if (DEBUG_MODE) {
+                Main.print("✅ Post salvo no banco: " + title);
+            }
+    
+        } catch (SQLException e) {
+            if (DEBUG_MODE) {
+                Main.print("❌ Erro ao salvar post: " + e.getMessage());
+            }
+        }
+    }
+
+    
+    public static List<Post> getAllPosts() {
+        List<Post> list = new ArrayList<>();
+    
+        String sql = "SELECT * FROM posts ORDER BY created_at DESC";
+    
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+    
+            while (rs.next()) {
+    
+                int id = rs.getInt("id");
+                String author = rs.getString("author");
+                String title = rs.getString("title");
+                String category = rs.getString("category");
+                String message = rs.getString("message");
+    
+                byte[] imageData = rs.getBytes("image");
+                ImageIcon img = null;
+    
+                if (imageData != null) {
+                    img = new ImageIcon(imageData);
+                    img = new ImageIcon(img.getImage().getScaledInstance(420, -1, Image.SCALE_SMOOTH));
+                }
+    
+                Post p = new Post(author, title, category, message, img);
+                p.id = id;
+    
+                list.add(p);
+            }
+    
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    
+        return list;
+    }
+    
+
+    public static List<Post> getPostsByCategory(String category) {
+        List<Post> list = new ArrayList<>();
+    
+        String sql = "SELECT id, author, title, category, message, image FROM posts WHERE category = ? ORDER BY created_at DESC";
+    
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+    
+            stmt.setString(1, category);
+    
+            ResultSet rs = stmt.executeQuery();
+    
+            while (rs.next()) {
+    
+                int id = rs.getInt("id");
+                String author = rs.getString("author");
+                String title = rs.getString("title");
+                String cat = rs.getString("category");
+                String text = rs.getString("message");
+    
+                ImageIcon image = null;
+                byte[] imgBytes = rs.getBytes("image");
+                if (imgBytes != null) image = new ImageIcon(imgBytes);
+    
+                Post p = new Post(author, title, cat, text, image);
+                p.id = id;
+    
+                list.add(p);
+            }
+    
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    
+        return list;
+    }
+    
+    public static List<Post> searchPostsByTitle(String term) {
+        List<Post> list = new ArrayList<>();
+    
+        String sql = "SELECT id, author, title, category, message, image FROM posts WHERE LOWER(title) LIKE ? ORDER BY created_at DESC";
+    
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+    
+            stmt.setString(1, "%" + term.toLowerCase() + "%");
+    
+            ResultSet rs = stmt.executeQuery();
+    
+            while (rs.next()) {
+    
+                int id = rs.getInt("id");
+                String author = rs.getString("author");
+                String title = rs.getString("title");
+                String category = rs.getString("category");
+                String text = rs.getString("message");
+    
+                ImageIcon image = null;
+                byte[] imgBytes = rs.getBytes("image");
+                if (imgBytes != null) image = new ImageIcon(imgBytes);
+    
+                Post p = new Post(author, title, category, text, image);
+                p.id = id;
+    
+                list.add(p);
+            }
+    
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    
+        return list;
+    }
+
+    public static List<Post> getAllPostsAlphabetically() {
+        List<Post> list = new ArrayList<>();
+        String sql = "SELECT id, author, title, category, message, image FROM posts ORDER BY LOWER(title) ASC";
+    
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+    
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String author = rs.getString("author");
+                String title = rs.getString("title");
+                String category = rs.getString("category");
+                String text = rs.getString("message");
+    
+                ImageIcon image = null;
+                byte[] imgBytes = rs.getBytes("image");
+                if (imgBytes != null) image = new ImageIcon(imgBytes);
+    
+                Post p = new Post(author, title, category, text, image);
+                p.id = id;
+    
+                list.add(p);
+            }
+    
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    
+        return list;
+    }
+    
+    
+public static Map<String, Integer> getTrendingTopics() {
+    Map<String, Integer> trends = new HashMap<>();
+
+    String sql = "SELECT category, COUNT(*) AS total FROM posts GROUP BY category ORDER BY total DESC LIMIT 10";
+
+    try (Connection conn = getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql);
+         ResultSet rs = stmt.executeQuery()) {
+
+        while (rs.next()) {
+            trends.put(rs.getString("category"), rs.getInt("total"));
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return trends;
+}
+
+public static void banirUsuario(String email, int dias) {
+    String sql = "REPLACE INTO usuarios_banidos (email, banido_ate) VALUES (?, DATE_ADD(NOW(), INTERVAL ? DAY))";
+
+    try (Connection conn = getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+        stmt.setString(1, email);
+        stmt.setInt(2, dias);
+        stmt.executeUpdate();
+
+        if (DEBUG_MODE) {
+            Main.print("⛔ Usuário banido: " + email + " por " + dias + " dias");
+        }
+
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+}
+
+public static boolean isUsuarioBanido(String email) {
+    String sql = "SELECT banido_ate FROM usuarios_banidos WHERE email = ?";
+
+    try (Connection conn = getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+        stmt.setString(1, email);
+        ResultSet rs = stmt.executeQuery();
+
+        if (rs.next()) {
+            Timestamp banTime = rs.getTimestamp("banido_ate");
+            return banTime.after(new Timestamp(System.currentTimeMillis()));
+        }
+
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+
+    return false;
+}
+
+public static long getBanRemainingMinutes(String email) {
+    String sql = "SELECT banido_ate FROM usuarios_banidos WHERE email = ?";
+
+    try (Connection conn = getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+        stmt.setString(1, email);
+        ResultSet rs = stmt.executeQuery();
+
+        if (rs.next()) {
+            Timestamp banTime = rs.getTimestamp("banido_ate");
+            long diff = banTime.getTime() - System.currentTimeMillis();
+
+            if (diff > 0) {
+                return diff / 60000; // converte ms → minutos
+            }
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return 0;
+}
+
+
+public static int getUserStaff(String email) {
+    String sql = "SELECT staff FROM usuarios WHERE email = ?";
+
+    try (Connection conn = getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+        stmt.setString(1, email);
+        ResultSet rs = stmt.executeQuery();
+
+        if (rs.next()) {
+            return rs.getInt("staff");
+        }
+
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+
+    return 0; // padrão = usuário comum
+}
+
+public static void deletePost(int postId) {
+    String sql = "DELETE FROM posts WHERE id = ?";
+
+    try (Connection conn = getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+        stmt.setInt(1, postId);
+        stmt.executeUpdate();
+
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+}
+
 
     public static void inicializarBanco() {
         try {
@@ -498,6 +917,62 @@ public class database {
                     }
                 }
             }
+
+            // 4. Cria a tabela de posts
+try (Connection conn = getConnection()) {
+    String sqlCreatePosts = "CREATE TABLE IF NOT EXISTS posts (" +
+            "id INT AUTO_INCREMENT PRIMARY KEY," +
+            "author VARCHAR(100)," +
+            "title VARCHAR(200)," +
+            "category VARCHAR(100)," +
+            "message TEXT," +
+            "image LONGBLOB," +
+            "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+            ")";
+
+    try (PreparedStatement stmt = conn.prepareStatement(sqlCreatePosts)) {
+        stmt.executeUpdate();
+        if (DEBUG_MODE) {
+            Main.print("✅ Tabela 'posts' verificada/criada.");
+        }
+    }
+}
+//
+// 5. Cria a tabela de likes das postagens
+try (Connection conn = getConnection()) {
+    String sqlCreateLikes = "CREATE TABLE IF NOT EXISTS post_likes (" +
+            "id INT AUTO_INCREMENT PRIMARY KEY," +
+            "user_email VARCHAR(100) NOT NULL," +
+            "post_id INT NOT NULL," +
+            "UNIQUE(user_email, post_id)," +
+            "FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE" +
+            ")";
+
+    try (PreparedStatement stmt = conn.prepareStatement(sqlCreateLikes)) {
+        stmt.executeUpdate();
+        if (DEBUG_MODE) {
+            Main.print("✅ Tabela 'post_likes' verificada/criada.");
+        }
+    }
+}
+
+// 6. Cria a tabela de usuários banidos
+try (Connection conn = getConnection()) {
+    String sqlBanTable = "CREATE TABLE IF NOT EXISTS usuarios_banidos (" +
+            "id INT AUTO_INCREMENT PRIMARY KEY," +
+            "email VARCHAR(100) NOT NULL UNIQUE," +
+            "banido_ate TIMESTAMP NOT NULL" +
+            ")";
+
+    try (PreparedStatement stmt = conn.prepareStatement(sqlBanTable)) {
+        stmt.executeUpdate();
+        if (DEBUG_MODE) {
+            Main.print("✅ Tabela 'usuarios_banidos' verificada/criada.");
+        }
+    }
+}
+
+
 
         } catch (SQLException e) {
             if (DEBUG_MODE) {
