@@ -1,7 +1,10 @@
 package main.java;
 
 import java.awt.*;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +30,37 @@ import java.net.URL;
  * 4. `Panel2FA()` → mostra verificação em 2 fatores.
  */
 public class InterfaceUI {
+
+    // ===============================
+// SISTEMA DE FEED (POSTAGENS)
+// ===============================
+
+// Classe que representa um post
+static class Post {
+    int id; // ✅ AQUI — ESTE É O CAMPO NOVO QUE DEVE SER ADICIONADO
+
+    String author;
+    String title;
+    String category;
+    String text;
+    ImageIcon image;
+
+    public Post(String author, String title, String category, String text, ImageIcon image) {
+        this.author = author;
+        this.title = title;
+        this.category = category;
+        this.text = text;
+        this.image = image;
+    }
+}
+
+// Lista de posts (vai virar SQL depois)
+static java.util.List<Post> posts = new java.util.ArrayList<>();
+
+// FeedPanel precisa ser acessível globalmente
+static JPanel feedPanel;
+static JPanel trendingColumn;
+
 
      // Toolkit para pegar o tamanho da tela do sistema
     static Toolkit toolkit = Toolkit.getDefaultToolkit();
@@ -590,6 +624,395 @@ new Thread(() -> {
      * 
      * @param frame janela principal
      */
+
+     // ========================================
+// ADICIONAR UM POST AO FEED
+// ========================================
+// ========================================
+// ADICIONAR UM POST AO FEED (CORRIGIDO)
+// ========================================
+
+public static void openEditPostPopup(JFrame frame, JPanel feedPanel, Post post) {
+
+    // Fundo escuro
+    JDialog dialog = new JDialog(frame, true);
+    dialog.setUndecorated(true);
+    dialog.setLayout(new GridBagLayout());
+    dialog.setBackground(new Color(0, 0, 0, 150));
+
+    // Card central
+    JPanel card = new JPanel();
+    card.setPreferredSize(new Dimension(620, 460));
+    card.setBackground(Color.WHITE);
+    card.setLayout(new GridBagLayout());
+    card.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(220, 220, 220), 1),
+            BorderFactory.createEmptyBorder(20, 20, 20, 20)
+    ));
+
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.insets = new Insets(8, 8, 8, 8);
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+
+    // ================== BOTÃO X ==================
+    JButton closeBtn = new RoundedButton("X");
+    closeBtn.setFocusable(false);
+    closeBtn.setBorderPainted(false);
+    closeBtn.setContentAreaFilled(false);
+    closeBtn.setFont(new Font("Segoe UI", Font.BOLD, 18));
+    closeBtn.setForeground(Color.GRAY);
+    closeBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+    closeBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+        @Override
+        public void mouseEntered(java.awt.event.MouseEvent evt) { closeBtn.setForeground(Color.RED); }
+        @Override
+        public void mouseExited(java.awt.event.MouseEvent evt) { closeBtn.setForeground(Color.GRAY); }
+    });
+
+    closeBtn.addActionListener(e -> dialog.dispose());
+
+    JPanel closeWrapper = new JPanel(new BorderLayout());
+    closeWrapper.setOpaque(false);
+    closeWrapper.add(closeBtn, BorderLayout.EAST);
+
+    gbc.gridx = 1;
+    gbc.gridy = 0;
+    gbc.anchor = GridBagConstraints.NORTHEAST;
+    card.add(closeWrapper, gbc);
+
+    // ================== Nome do usuário ==================
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+    gbc.anchor = GridBagConstraints.WEST;
+
+    JLabel userLabel = new JLabel("@" + post.author);
+    userLabel.setFont(new Font("Segoe UI", Font.BOLD, 17));
+    userLabel.setForeground(new Color(40, 40, 40));
+    card.add(userLabel, gbc);
+
+    // ================== Categoria ==================
+    String[] categories = {"IA Responsável", "Cibersegurança", "Privacidade & Ética Digital"};
+    JComboBox<String> categoryBox = new JComboBox<>(categories);
+    categoryBox.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+    categoryBox.setSelectedItem(post.category); // ⭐ carregar categoria existente
+
+    gbc.gridy = 1;
+    gbc.gridwidth = 2;
+    card.add(categoryBox, gbc);
+
+    // ================== Título ==================
+    JTextField titleField = new JTextField(post.title);
+    titleField.setFont(new Font("Segoe UI", Font.BOLD, 18));
+    titleField.setForeground(Color.BLACK);
+    titleField.setBorder(BorderFactory.createLineBorder(new Color(210, 210, 210)));
+
+    gbc.gridy = 2;
+    card.add(titleField, gbc);
+
+    // ================== Texto ==================
+    JTextArea textArea = new JTextArea(post.text);
+    textArea.setLineWrap(true);
+    textArea.setWrapStyleWord(true);
+    textArea.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+    textArea.setBorder(BorderFactory.createLineBorder(new Color(210, 210, 210)));
+
+    JScrollPane scroll = new JScrollPane(textArea);
+    scroll.setPreferredSize(new Dimension(550, 140));
+
+    gbc.gridy = 3;
+    gbc.fill = GridBagConstraints.BOTH;
+    card.add(scroll, gbc);
+
+    // ================== Imagem atual ==================
+    final ImageIcon[] selectedImage = {post.image};
+
+    JButton addImageBtn = new RoundedButton("Alterar imagem");
+    addImageBtn.addActionListener(e -> {
+        JFileChooser chooser = new JFileChooser();
+        if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+            ImageIcon img = new ImageIcon(chooser.getSelectedFile().getAbsolutePath());
+            selectedImage[0] = img;
+        }
+    });
+
+    gbc.gridy = 4;
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+    card.add(addImageBtn, gbc);
+
+    // ================== BOTÃO SALVAR ==================
+    JButton saveBtn = new RoundedButton("Salvar alterações");
+    saveBtn.setBackground(new Color(98, 0, 238));
+    saveBtn.setForeground(Color.WHITE);
+    saveBtn.setFont(new Font("Segoe UI", Font.BOLD, 16));
+
+    gbc.gridy = 5;
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+    card.add(saveBtn, gbc);
+
+    // ================== AÇÃO DO BOTÃO SALVAR ==================
+    saveBtn.addActionListener(e -> {
+
+        String newTitle = titleField.getText().trim();
+        String newText = textArea.getText().trim();
+        String newCategory = (String) categoryBox.getSelectedItem();
+        ImageIcon newImage = selectedImage[0];
+
+        if (newTitle.isEmpty() || newText.isEmpty()) {
+            JOptionPane.showMessageDialog(dialog, "Título e texto não podem estar vazios!");
+            return;
+        }
+
+        // Atualiza no banco
+        database.updatePost(post.id, newTitle, newText, newCategory, newImage);
+
+        // Remove o post antigo do feed
+        feedPanel.removeAll();
+
+        // Recarrega todos
+        for (Post p : database.getAllPosts()) {
+            addPostToFeed(feedPanel, p);
+        }
+
+        feedPanel.revalidate();
+        feedPanel.repaint();
+
+        dialog.dispose();
+    });
+
+    dialog.add(card);
+    dialog.pack();
+    dialog.setLocationRelativeTo(frame);
+    dialog.setVisible(true);
+}
+
+
+public static void addPostToFeed(JPanel feedPanel, Post post) {
+
+    JPanel postCard = new JPanel();
+    postCard.setLayout(new BoxLayout(postCard, BoxLayout.Y_AXIS));
+    postCard.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createEmptyBorder(15, 15, 15, 15),
+            BorderFactory.createLineBorder(new Color(200, 200, 200), 1)
+    ));
+    postCard.setBackground(new Color(30, 30, 35));
+
+    // --- Labels com ALINHAMENTO CORRIGIDO ---
+    JLabel authorLabel = new JLabel("@" + post.author);
+    authorLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+    authorLabel.setForeground(new Color(98, 0, 238));
+    authorLabel.setAlignmentX(Component.LEFT_ALIGNMENT); // ✅ CORREÇÃO APLICADA
+    postCard.add(authorLabel);
+    
+    // Espaço para separar autor e título
+    postCard.add(Box.createRigidArea(new Dimension(0, 5))); 
+
+    JLabel titleLabel = new JLabel(post.title);
+    titleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+    titleLabel.setForeground(Color.WHITE);
+    titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT); // ✅ CORREÇÃO APLICADA
+    postCard.add(titleLabel);
+
+    JLabel categoryLabel = new JLabel("Categoria: " + post.category);
+    categoryLabel.setFont(new Font("Segoe UI", Font.ITALIC, 12));
+    categoryLabel.setForeground(Color.LIGHT_GRAY);
+    categoryLabel.setAlignmentX(Component.LEFT_ALIGNMENT); // ✅ CORREÇÃO APLICADA
+    postCard.add(categoryLabel);
+
+    // Espaço entre categoria e texto
+    postCard.add(Box.createRigidArea(new Dimension(0, 10))); 
+
+    JLabel textLabel = new JLabel("<html>" + post.text.replace("\n", "<br>") + "</html>");
+    textLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+    textLabel.setForeground(Color.WHITE);
+    textLabel.setAlignmentX(Component.LEFT_ALIGNMENT); // ✅ CORREÇÃO APLICADA
+    postCard.add(textLabel);
+    
+    // Espaço entre texto e imagem/ações
+    postCard.add(Box.createRigidArea(new Dimension(0, 10))); 
+
+    if (post.image != null) {
+        JLabel imageLabel = new JLabel(post.image);
+        imageLabel.setAlignmentX(Component.LEFT_ALIGNMENT); // ✅ CORREÇÃO APLICADA
+        postCard.add(imageLabel);
+        postCard.add(Box.createRigidArea(new Dimension(0, 10))); 
+    }
+
+    JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    actions.setOpaque(false);
+    actions.setAlignmentX(Component.LEFT_ALIGNMENT); // ✅ CORREÇÃO APLICADA
+    
+    // ✅ LIKE CORRENTE
+    // [O restante da lógica de botões de Like e Delete permanece a mesma]
+    int currentLikes = database.getLikes(post.id);
+    JButton likeBtn = new RoundedButton("❤️ " + currentLikes);
+    JButton delBtn = new RoundedButton("Excluir");
+
+    // Email do usuário logado
+    String userEmail = AuthenticationService.getLoggedEmail();
+
+    // ✅ SISTEMA ANTI LIKE INFINITO
+    likeBtn.addActionListener(e -> {
+
+        if (!database.userLiked(userEmail, post.id)) {
+
+            database.addLike(userEmail, post.id); // adiciona like
+            int newLikes = database.getLikes(post.id); // recarrega total
+            likeBtn.setText("❤️ " + newLikes);
+
+        } else {
+            JOptionPane.showMessageDialog(null, "Você já deu like nessa postagem!");
+        }
+    });
+
+
+    String loggedEmail = AuthenticationService.getLoggedEmail();
+    String loggedUser = AuthenticationService.getLoggedUsername();
+
+    // ✅ PERMISSÃO PARA DELETAR (autor OU staff)
+    int staff = database.getUserStaff(loggedEmail);
+
+    if (post.author.equals(loggedUser) || staff > 0) {   // ✅ ALTERADO AQUI
+        delBtn.addActionListener(e -> {
+            database.deletePost(post.id);
+            feedPanel.remove(postCard);
+            feedPanel.revalidate();
+            feedPanel.repaint();
+        });
+    } else {
+        delBtn.setVisible(false);
+    }
+
+    JButton banBtn = new RoundedButton("Banir");
+
+// Apenas administradores podem banir (staff >= 2)
+if (staff >= 2) {
+
+    banBtn.addActionListener(e -> {
+
+        String[] opcoes = {
+            "24 horas",
+            "7 dias",
+            "31 dias",
+            "Permanente"
+        };
+
+        String escolha = (String) JOptionPane.showInputDialog(
+            null,
+            "Selecione a duração do banimento:",
+            "Banir usuário",
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            opcoes,
+            opcoes[0]
+        );
+
+        if (escolha != null) {
+            int dias = 0;
+
+            switch (escolha) {
+                case "24 horas": dias = 1; break;
+                case "7 dias": dias = 7; break;
+                case "31 dias": dias = 31; break;
+                case "Permanente": dias = 99999; break;
+            }
+
+            database.banirUsuario(post.author, dias);
+
+            JOptionPane.showMessageDialog(null,
+                    "Usuário @" + post.author + " foi banido por: " + escolha);
+        }
+    });
+
+} else {
+    banBtn.setVisible(false);
+}
+
+actions.add(banBtn);
+
+
+    JButton editBtn = new RoundedButton("Editar");
+
+    if (post.author.equals(loggedUser)) {
+    
+        editBtn.addActionListener(e -> {
+            JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(feedPanel);
+            openEditPostPopup(frame, feedPanel, post);
+        });
+    
+    } else {
+        editBtn.setVisible(false);
+    }
+    
+    actions.add(editBtn);
+    
+
+    actions.add(likeBtn);
+    actions.add(delBtn);
+
+    postCard.add(actions);
+
+    // Adiciona no topo
+    feedPanel.add(postCard, 0);
+
+    feedPanel.revalidate();
+    feedPanel.repaint();
+}
+// ========================================
+// ATUALIZAR TRENDING TOPICS
+// ========================================
+public static void updateTrendingTopics(JPanel trendingColumn) {
+
+    trendingColumn.removeAll();
+    trendingColumn.setLayout(new BoxLayout(trendingColumn, BoxLayout.Y_AXIS));
+    trendingColumn.setBackground(new Color(20, 20, 25));
+
+    // Título
+    JLabel trendingTitle = new JLabel("Assuntos do Momento");
+    trendingTitle.setForeground(Color.WHITE);
+    trendingTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
+    trendingTitle.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+    trendingColumn.add(trendingTitle);
+
+    // ✅ BUSCAR TRENDING REAL DO BANCO
+    Map<String, Integer> trends = database.getTrendingTopics();
+
+    if (trends.isEmpty()) {
+        JLabel none = new JLabel("Nenhum tópico ainda");
+        none.setForeground(Color.GRAY);
+        none.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        none.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+        trendingColumn.add(none);
+
+        trendingColumn.revalidate();
+        trendingColumn.repaint();
+        return;
+    }
+
+    // ✅ Ordenar por maior quantidade
+    List<Map.Entry<String, Integer>> sorted = new ArrayList<>(trends.entrySet());
+    sorted.sort((a, b) -> b.getValue() - a.getValue());
+
+    // ✅ Mostrar só os 5 mais relevantes
+    int top = Math.min(5, sorted.size());
+    for (int i = 0; i < top; i++) {
+        String name = sorted.get(i).getKey();
+        int count = sorted.get(i).getValue();
+
+        JLabel lbl = new JLabel("#" + name + "  •  " + count + " posts");
+        lbl.setForeground(Color.LIGHT_GRAY);
+        lbl.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        lbl.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+        trendingColumn.add(lbl);
+    }
+
+    trendingColumn.revalidate();
+    trendingColumn.repaint();
+}
+
+  
+
+
   
    public static void CreateRegistroPanel(JFrame frame) {
        // frame.getContentPane().removeAll();
@@ -651,12 +1074,41 @@ new Thread(() -> {
         // Senha Field
         gbc.gridy++;
         gbc.gridwidth = 2;
-        JPasswordField passwordField = new JPasswordField();
-        passwordField.setPreferredSize(new Dimension(250, 30));
-        passwordField.setBackground(Color.WHITE);
-        passwordField.setForeground(Color.BLACK);
-        passwordField.setBorder(BorderFactory.createLineBorder(new Color(100, 100, 100), 2, true));
-        leftPanel.add(passwordField, gbc);
+        // Campo de senha
+JPasswordField passwordField = new JPasswordField();
+passwordField.setPreferredSize(new Dimension(250, 30));
+passwordField.setBackground(Color.WHITE);
+passwordField.setForeground(Color.BLACK);
+passwordField.setBorder(BorderFactory.createLineBorder(new Color(100, 100, 100), 2, true));
+
+// Botão olho
+JButton showHideButton = new JButton("\uD83D\uDC41"); // emoji de olho
+showHideButton.setPreferredSize(new Dimension(30, 30));
+showHideButton.setFocusPainted(false);
+showHideButton.setBorder(BorderFactory.createEmptyBorder());
+showHideButton.setContentAreaFilled(false);
+
+// Flag para controle
+final boolean[] isPasswordVisible = {false};
+showHideButton.addActionListener(e -> {
+    if (isPasswordVisible[0]) {
+        passwordField.setEchoChar('•'); // volta a esconder
+        isPasswordVisible[0] = false;
+    } else {
+        passwordField.setEchoChar((char)0); // mostra a senha
+        isPasswordVisible[0] = true;
+    }
+});
+
+// JPanel para manter o layout e campo com estilo
+JPanel passwordPanel = new JPanel(new BorderLayout());
+passwordPanel.setBackground(Color.WHITE); // mantém a cor de fundo do campo
+passwordPanel.add(passwordField, BorderLayout.CENTER);
+passwordPanel.add(showHideButton, BorderLayout.EAST);
+
+// Adiciona ao leftPanel no GridBagConstraints
+leftPanel.add(passwordPanel, gbc);
+
 
          // Senha Label
         gbc.gridy++;
@@ -674,6 +1126,47 @@ new Thread(() -> {
         passwordField2.setForeground(Color.BLACK);
         passwordField2.setBorder(BorderFactory.createLineBorder(new Color(100, 100, 100), 2, true));
         leftPanel.add(passwordField2, gbc);
+
+        // Data de Nascimento Label
+gbc.gridy++;
+gbc.gridwidth = 2;
+JLabel birthLabel = new JLabel("Data de Nascimento:");
+birthLabel.setForeground(Color.BLACK);
+leftPanel.add(birthLabel, gbc);
+
+// Data de Nascimento Field (dia, mês, ano separados)
+gbc.gridy++;
+gbc.gridwidth = 2;
+
+JPanel birthPanel = new JPanel(new GridLayout(1, 3, 10, 0));
+birthPanel.setBackground(Color.WHITE);
+
+// Campo Dia
+JTextField dayField = new JTextField();
+dayField.setPreferredSize(new Dimension(60, 30));
+dayField.setBackground(Color.WHITE);
+dayField.setForeground(Color.BLACK);
+dayField.setBorder(BorderFactory.createLineBorder(new Color(100, 100, 100), 2, true));
+birthPanel.add(dayField);
+
+// Campo Mês
+JTextField monthField = new JTextField();
+monthField.setPreferredSize(new Dimension(60, 30));
+monthField.setBackground(Color.WHITE);
+monthField.setForeground(Color.BLACK);
+monthField.setBorder(BorderFactory.createLineBorder(new Color(100, 100, 100), 2, true));
+birthPanel.add(monthField);
+
+// Campo Ano
+JTextField yearField = new JTextField();
+yearField.setPreferredSize(new Dimension(80, 30));
+yearField.setBackground(Color.WHITE);
+yearField.setForeground(Color.BLACK);
+yearField.setBorder(BorderFactory.createLineBorder(new Color(100, 100, 100), 2, true));
+birthPanel.add(yearField);
+
+leftPanel.add(birthPanel, gbc);
+
 
          // Espaço para erro
         gbc.gridx = 0;
@@ -766,6 +1259,7 @@ new Thread(() -> {
             mensagens.put("Incorrect", "Já existe um cadastro com esse email");
              mensagens.put("TryAgainLater", "Aguarde um pouco");
               mensagens.put("PwnedPassword", "Senha encontrada em vazamentos, tente outra");
+                  mensagens.put("UnderAge", "É necessário ser maior de 13 anos");
 
        registerButton.addActionListener(e -> {
     String email = emailField.getText();
@@ -775,6 +1269,32 @@ new Thread(() -> {
     // roda em outra thread pra não travar a UI
     new Thread(() -> {
         String Result = AuthenticationService.RegistroCriar(email, password, password2);
+
+          if (Result.equals("Sucesso")) {
+// Obtém a data atual
+java.util.Calendar hoje = java.util.Calendar.getInstance();
+int anoAtual = hoje.get(java.util.Calendar.YEAR);
+int mesAtual = hoje.get(java.util.Calendar.MONTH) + 1;
+int diaAtual = hoje.get(java.util.Calendar.DAY_OF_MONTH);
+
+// Calcula a idade
+int idade = anoAtual - Integer.parseInt(yearField.getText());
+
+// Ajusta se ainda não fez aniversário este ano
+if (Integer.parseInt(monthField.getText()) > mesAtual || 
+    (Integer.parseInt(monthField.getText()) == mesAtual && 
+     Integer.parseInt(dayField.getText()) > diaAtual)) {
+    idade--;
+}
+
+// Verifica se é maior de 13 anos
+if (idade < 13) {
+   String msg = mensagens.get("UnderAge");
+    errorLabel.setText(msg);
+    return;
+}
+          };
+
         Main.print(Result);
 
         SwingUtilities.invokeLater(() -> {
@@ -881,12 +1401,41 @@ new Thread(() -> {
         // Senha Field
         gbc.gridy++;
         gbc.gridwidth = 2;
-        JPasswordField passwordField = new JPasswordField();
-        passwordField.setPreferredSize(new Dimension(250, 30));
-        passwordField.setBackground(Color.WHITE);
-        passwordField.setForeground(Color.BLACK);
-        passwordField.setBorder(BorderFactory.createLineBorder(new Color(100, 100, 100), 2, true));
-        leftPanel.add(passwordField, gbc);
+        // Campo de senha
+JPasswordField passwordField = new JPasswordField();
+passwordField.setPreferredSize(new Dimension(250, 30));
+passwordField.setBackground(Color.WHITE);
+passwordField.setForeground(Color.BLACK);
+passwordField.setBorder(BorderFactory.createLineBorder(new Color(100, 100, 100), 2, true));
+
+// Botão olho
+JButton showHideButton = new JButton("\uD83D\uDC41"); // emoji de olho
+showHideButton.setPreferredSize(new Dimension(30, 30));
+showHideButton.setFocusPainted(false);
+showHideButton.setBorder(BorderFactory.createEmptyBorder());
+showHideButton.setContentAreaFilled(false);
+
+// Flag para controle
+final boolean[] isPasswordVisible = {false};
+showHideButton.addActionListener(e -> {
+    if (isPasswordVisible[0]) {
+        passwordField.setEchoChar('•'); // volta a esconder
+        isPasswordVisible[0] = false;
+    } else {
+        passwordField.setEchoChar((char)0); // mostra a senha
+        isPasswordVisible[0] = true;
+    }
+});
+
+// JPanel para manter o layout e campo com estilo
+JPanel passwordPanel = new JPanel(new BorderLayout());
+passwordPanel.setBackground(Color.WHITE); // mantém a cor de fundo do campo
+passwordPanel.add(passwordField, BorderLayout.CENTER);
+passwordPanel.add(showHideButton, BorderLayout.EAST);
+
+// Adiciona ao leftPanel no GridBagConstraints
+leftPanel.add(passwordPanel, gbc);
+
 
        
 
@@ -994,6 +1543,7 @@ new Thread(() -> {
             mensagens.put("InvalidEmail", "Formato de email inválido");
             mensagens.put("InvalidPassword", "Formato de senha inválido");
             mensagens.put("LoginBlocked", "Login bloqueado! Tente novamente em: ");
+            mensagens.put("LoginBanned", "Você foi banido! Seu acesso foi bloqueado.");
             mensagens.put("TryAgainLater", "Aguarde um pouco");
             mensagens.put("PwnedPassword", "Senha encontrada em vazamentos, tente outra");
 
@@ -1054,4 +1604,465 @@ new Thread(() -> {
             // implementar cadastro
         });
     }
+
+public static void openTweetPopup(JFrame frame) {
+
+    // Fundo escuro
+    JDialog dialog = new JDialog(frame, true);
+    dialog.setUndecorated(true);
+    dialog.setLayout(new GridBagLayout());
+    dialog.setBackground(new Color(0, 0, 0, 150));
+
+    // Card central
+    JPanel card = new JPanel();
+    card.setPreferredSize(new Dimension(620, 460));
+    card.setBackground(Color.WHITE);
+    card.setLayout(new GridBagLayout());
+    card.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(220, 220, 220), 1),
+            BorderFactory.createEmptyBorder(20, 20, 20, 20)
+    ));
+
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.insets = new Insets(8, 8, 8, 8);
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+
+    // ================== BOTÃO X ==================
+    JButton closeBtn = new RoundedButton("X");
+    closeBtn.setFocusable(false);
+    closeBtn.setBorderPainted(false);
+    closeBtn.setContentAreaFilled(false);
+    closeBtn.setFont(new Font("Segoe UI", Font.BOLD, 18));
+    closeBtn.setForeground(Color.GRAY);
+    closeBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+    closeBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+        @Override
+        public void mouseEntered(java.awt.event.MouseEvent evt) { closeBtn.setForeground(Color.RED); }
+        @Override
+        public void mouseExited(java.awt.event.MouseEvent evt) { closeBtn.setForeground(Color.GRAY); }
+    });
+
+    closeBtn.addActionListener(e -> dialog.dispose());
+
+    JPanel closeWrapper = new JPanel(new BorderLayout());
+    closeWrapper.setOpaque(false);
+    closeWrapper.add(closeBtn, BorderLayout.EAST);
+
+    gbc.gridx = 1;
+    gbc.gridy = 0;
+    gbc.anchor = GridBagConstraints.NORTHEAST;
+    card.add(closeWrapper, gbc);
+
+    // ================== Nome do usuário ==================
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+    gbc.anchor = GridBagConstraints.WEST;
+
+    JLabel userLabel = new JLabel("@" + AuthenticationService.loggedUserName);
+    userLabel.setFont(new Font("Segoe UI", Font.BOLD, 17));
+    userLabel.setForeground(new Color(40, 40, 40));
+    card.add(userLabel, gbc);
+
+    // ================== Categoria ==================
+    String[] categories = {"IA Responsável", "Cibersegurança", "Privacidade & Ética Digital"};
+    JComboBox<String> categoryBox = new JComboBox<>(categories);
+    categoryBox.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+
+    gbc.gridy = 1;
+    gbc.gridwidth = 2;
+    card.add(categoryBox, gbc);
+
+    // ================== Título ==================
+    JTextField titleField = new JTextField("Digite o título...");
+    titleField.setFont(new Font("Segoe UI", Font.BOLD, 18));
+    titleField.setForeground(Color.GRAY);
+    titleField.setBorder(BorderFactory.createLineBorder(new Color(210, 210, 210)));
+
+    titleField.addFocusListener(new java.awt.event.FocusAdapter() {
+        public void focusGained(java.awt.event.FocusEvent evt) {
+            if (titleField.getText().equals("Digite o título...")) {
+                titleField.setText("");
+                titleField.setForeground(Color.BLACK);
+            }
+        }
+        public void focusLost(java.awt.event.FocusEvent evt) {
+            if (titleField.getText().trim().isEmpty()) {
+                titleField.setForeground(Color.GRAY);
+                titleField.setText("Digite o título...");
+            }
+        }
+    });
+
+    gbc.gridy = 2;
+    card.add(titleField, gbc);
+
+    // ================== Mensagem ==================
+    JTextArea textArea = new JTextArea(5, 20);
+    textArea.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+    textArea.setForeground(Color.GRAY);
+    textArea.setText("Digite sua mensagem...");
+    textArea.setLineWrap(true);
+    textArea.setWrapStyleWord(true);
+
+    textArea.addFocusListener(new java.awt.event.FocusAdapter() {
+        public void focusGained(java.awt.event.FocusEvent evt) {
+            if (textArea.getText().equals("Digite sua mensagem...")) {
+                textArea.setText("");
+                textArea.setForeground(Color.BLACK);
+            }
+        }
+        public void focusLost(java.awt.event.FocusEvent evt) {
+            if (textArea.getText().trim().isEmpty()) {
+                textArea.setForeground(Color.GRAY);
+                textArea.setText("Digite sua mensagem...");
+            }
+        }
+    });
+
+    JScrollPane scroll = new JScrollPane(textArea);
+    scroll.setBorder(BorderFactory.createLineBorder(new Color(210, 210, 210)));
+
+    gbc.gridy = 3;
+    card.add(scroll, gbc);
+
+    // ================== Botões ==================
+    JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+    buttonRow.setBackground(Color.WHITE);
+
+    int buttonWidth = 140;
+    int buttonHeight = 40;
+
+    JButton btnUpload = new RoundedButton("Imagem");
+    btnUpload.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+    btnUpload.setBackground(Color.WHITE);
+    btnUpload.setForeground(Color.BLACK);
+    btnUpload.setBorder(BorderFactory.createLineBorder(new Color(180, 180, 180), 2, true));
+    btnUpload.setPreferredSize(new Dimension(buttonWidth, buttonHeight));
+
+    JButton btnPublish = new RoundedButton("Publicar");
+    btnPublish.setFont(new Font("Segoe UI", Font.BOLD, 14));
+    btnPublish.setBackground(new Color(120, 0, 255));
+    btnPublish.setForeground(Color.WHITE);
+    btnPublish.setBorder(BorderFactory.createLineBorder(new Color(120, 0, 255), 2, true));
+    btnPublish.setPreferredSize(new Dimension(buttonWidth, buttonHeight));
+
+    buttonRow.add(btnUpload);
+    buttonRow.add(btnPublish);
+
+    gbc.gridy = 4;
+    gbc.anchor = GridBagConstraints.EAST;
+    card.add(buttonRow, gbc);
+
+    // ================== Upload de imagem ==================
+    File[] selectedImage = {null};
+    btnUpload.addActionListener(e -> {
+        JFileChooser fc = new JFileChooser();
+        fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Imagens", "png", "jpg", "jpeg"));
+        if (fc.showOpenDialog(frame) == JFileChooser.APPROVE_OPTION) {
+            selectedImage[0] = fc.getSelectedFile();
+            btnUpload.setText("✅ Upload feito");
+        }
+    });
+
+    // ================== Publicar ==================
+    btnPublish.addActionListener(e -> {
+        String rawTitle = titleField.getText().trim();
+        String rawMsg = textArea.getText().trim();
+    
+        boolean invalidTitle = rawTitle.isEmpty() || rawTitle.equals("Digite o título...");
+        boolean invalidMsg = rawMsg.isEmpty() || rawMsg.equals("Digite sua mensagem...");
+    
+        // ✅ Validação de tamanho
+        int MAX_TITLE = 100;
+        int MAX_MSG = 300;
+    
+        if (rawTitle.length() > MAX_TITLE) {
+            JOptionPane.showMessageDialog(frame, "Título muito longo! Máx: " + MAX_TITLE + " caracteres.", "Erro", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+    
+        if (rawMsg.length() > MAX_MSG) {
+            JOptionPane.showMessageDialog(frame, "Mensagem muito longa! Máx: " + MAX_MSG + " caracteres.", "Erro", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+    
+        if (invalidTitle || invalidMsg) {
+            if (invalidTitle) titleField.setBorder(BorderFactory.createLineBorder(Color.RED, 2));
+            if (invalidMsg) scroll.setBorder(BorderFactory.createLineBorder(Color.RED, 2));
+    
+            JOptionPane.showMessageDialog(frame, "Preencha o título e a mensagem!", "Erro", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+    
+        // restaura bordas
+        titleField.setBorder(BorderFactory.createLineBorder(new Color(210, 210, 210)));
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(210, 210, 210)));
+    
+        String category = categoryBox.getSelectedItem().toString();
+    
+        // Converte imagem para bytes
+        byte[] imageBytes = null;
+        if (selectedImage[0] != null) {
+            try {
+                imageBytes = java.nio.file.Files.readAllBytes(selectedImage[0].toPath());
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(frame, "Erro ao ler a imagem!", "Erro", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        }
+    
+        // Salva post no banco
+        database.savePost(AuthenticationService.loggedUserName, rawTitle, category, rawMsg, imageBytes);
+    
+        // Atualiza feed
+        feedPanel.removeAll();
+        List<Post> postsDB = database.getAllPosts();
+        Collections.reverse(postsDB);
+    
+        for (Post post : postsDB) {
+            addPostToFeed(feedPanel, post);
+        }
+    
+        feedPanel.revalidate();
+        feedPanel.repaint();
+    
+        // Atualiza trending
+        updateTrendingTopics(trendingColumn);
+    
+        dialog.dispose();
+    });
+    
+    dialog.add(card);
+    dialog.pack();
+    dialog.setLocationRelativeTo(frame);
+    dialog.setVisible(true);
+}
+
+    
+
+
+    public static void Home() {
+
+        // Oculta outros painéis
+        if (LoginPanel != null) LoginPanel.setVisible(false);
+        if (CadastroPanel != null) CadastroPanel.setVisible(false);
+        if (ChooseOption != null) ChooseOption.setVisible(false);
+        if (FA2 != null) FA2.setVisible(false);
+    
+        JFrame frame = FrameZin;
+    
+        // Painel principal (3 colunas)
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setOpaque(false);
+        Home = mainPanel;
+    
+        // =======================================================
+        // ✅ COLUNA ESQUERDA — MENU TWITTER
+        // =======================================================
+        JPanel leftMenu = new JPanel();
+        leftMenu.setPreferredSize(new Dimension(220, frame.getHeight()));
+        leftMenu.setBackground(new Color(15, 15, 20));
+        leftMenu.setLayout(new BoxLayout(leftMenu, BoxLayout.Y_AXIS));
+    
+        JButton btnHome = new RoundedButton("Página Inicial");
+        JButton btnFiltros = new RoundedButton("Filtros");
+        JButton btnTweetar = new RoundedButton("Publicar");
+        JButton btnLogout = new RoundedButton("Deslogar");
+    
+        Color defaultBg = new Color(20, 20, 25);
+        Color defaultFg = Color.WHITE;
+    
+        btnTweetar.setBackground(new Color(120, 0, 255));
+        btnTweetar.setForeground(Color.WHITE);
+    
+        btnLogout.setBackground(new Color(200, 30, 30));
+        btnLogout.setForeground(Color.WHITE);
+
+        btnLogout.addActionListener(e -> {
+            Home.setVisible(false);
+            AuthenticationService.ClearLogin();
+            CreateLogin(FrameZin); // recria o painel de login e troca o contentPane
+        });
+
+        btnHome.addActionListener(e -> {
+    feedPanel.removeAll();
+    
+    // Carrega todos os posts novamente
+    List<Post> postsDB = database.getAllPosts();
+    Collections.reverse(postsDB); // Mais recentes em cima
+
+    for (Post p : postsDB) {
+        addPostToFeed(feedPanel, p);
+    }
+
+    feedPanel.revalidate();
+    feedPanel.repaint();
+});
+
+        
+    
+        JButton[] menuButtons = {btnHome, btnFiltros, btnTweetar, btnLogout};
+    
+        for (JButton b : menuButtons) {
+            b.setFont(new Font("Segoe UI", Font.BOLD, 16));
+            b.setFocusPainted(false);
+            b.setAlignmentX(Component.CENTER_ALIGNMENT);
+            b.setMaximumSize(new Dimension(200, 45));
+    
+            if (b != btnTweetar && b != btnLogout) {
+                b.setBackground(defaultBg);
+                b.setForeground(defaultFg);
+            }
+    
+            leftMenu.add(b);
+            leftMenu.add(Box.createRigidArea(new Dimension(0, 10)));
+        }
+    
+      // =======================================================
+// ✅ FILTROS DE CATEGORIA
+// =======================================================
+JPanel filterPanel = new JPanel();
+filterPanel.setBackground(new Color(15, 15, 20));
+filterPanel.setLayout(new BoxLayout(filterPanel, BoxLayout.Y_AXIS));
+filterPanel.setVisible(false);
+
+String[] categories = {
+        "IA Responsável",
+        "Cibersegurança",
+        "Privacidade & Ética Digital",
+        "Ordem ALfabética",
+};
+
+for (String cat : categories) {
+    JButton fb = new JButton(cat);
+    fb.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+    fb.setForeground(Color.WHITE);
+    fb.setBackground(new Color(30, 30, 35));
+    fb.setFocusPainted(false);
+    fb.setAlignmentX(Component.CENTER_ALIGNMENT);
+    fb.setMaximumSize(new Dimension(200, 35));
+
+    fb.addActionListener(e -> {
+        feedPanel.removeAll();
+        filterPanel.setVisible(false);
+        List<Post> postsDB;
+
+        if (cat.equals("Ordem ALfabética")) {
+            // Pega todos os posts e ordena pelo título A-Z
+            postsDB = database.getAllPostsAlphabetically();
+        } else {
+            postsDB = database.getPostsByCategory(cat);
+            Collections.reverse(postsDB); // Mantém a ordem original
+        }
+
+        for (Post p : postsDB) {
+            addPostToFeed(feedPanel, p);
+        }
+
+        feedPanel.revalidate();
+        feedPanel.repaint();
+    });
+
+    filterPanel.add(fb);
+    filterPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+}
+
+leftMenu.add(Box.createRigidArea(new Dimension(0, 10)));
+leftMenu.add(filterPanel);
+
+btnFiltros.addActionListener(e -> filterPanel.setVisible(!filterPanel.isVisible()));
+
+// =======================================================
+// ✅ COLUNA CENTRAL — FEED
+// =======================================================
+JPanel feedColumn = new JPanel(new BorderLayout());
+feedColumn.setBackground(new Color(25, 25, 30));
+
+feedPanel = new JPanel();
+feedPanel.setLayout(new BoxLayout(feedPanel, BoxLayout.Y_AXIS));
+feedPanel.setBackground(new Color(25, 25, 30));
+
+JScrollPane scroll = new JScrollPane(feedPanel);
+scroll.setBorder(null);
+scroll.getVerticalScrollBar().setUnitIncrement(16);
+
+feedColumn.add(scroll, BorderLayout.CENTER);
+
+// ✅ Tweetar abre pop-up
+btnTweetar.addActionListener(e -> openTweetPopup(frame));
+
+// =======================================================
+// ✅ CARREGAR POSTS DO BANCO DE DADOS
+// =======================================================
+feedPanel.removeAll();
+List<Post> postsDB = database.getAllPosts();
+
+// Mantém a ordem do mais recente para o mais antigo
+Collections.reverse(postsDB);
+
+for (Post p : postsDB) {
+    addPostToFeed(feedPanel, p);
+}
+
+feedPanel.revalidate();
+feedPanel.repaint();
+
+        // =======================================================
+        // ✅ COLUNA DIREITA — TRENDING + BUSCA
+        // =======================================================
+        trendingColumn = new JPanel();
+        trendingColumn.setPreferredSize(new Dimension(300, frame.getHeight()));
+        trendingColumn.setBackground(new Color(20, 20, 25));
+        trendingColumn.setLayout(new BoxLayout(trendingColumn, BoxLayout.Y_AXIS));
+    
+        JTextField searchField = new JTextField();
+        searchField.setMaximumSize(new Dimension(250, 35));
+        searchField.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.GRAY),
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        ));
+    
+        trendingColumn.add(Box.createRigidArea(new Dimension(0, 15)));
+        trendingColumn.add(searchField);
+        trendingColumn.add(Box.createRigidArea(new Dimension(0, 15)));
+    
+        searchField.addActionListener(e -> {
+            String term = searchField.getText().toLowerCase();
+    
+            trendingColumn.removeAll();
+            trendingColumn.add(searchField);
+            trendingColumn.add(Box.createRigidArea(new Dimension(0, 15)));
+    
+            List<Post> searchResults = database.searchPostsByTitle(term);
+    
+            for (Post p : searchResults) {
+                JLabel r = new JLabel("• " + p.title);
+                r.setForeground(Color.WHITE);
+                r.setBorder(BorderFactory.createEmptyBorder(5, 15, 5, 15));
+                trendingColumn.add(r);
+            }
+    
+            trendingColumn.revalidate();
+            trendingColumn.repaint();
+        });
+    
+        // ✅ TRENDING DO BANCO
+        updateTrendingTopics(trendingColumn);
+    
+        // =======================================================
+        // ✅ MONTAGEM FINAL
+        // =======================================================
+        mainPanel.add(leftMenu, BorderLayout.WEST);
+        mainPanel.add(feedColumn, BorderLayout.CENTER);
+        mainPanel.add(trendingColumn, BorderLayout.EAST);
+    
+        backgroundPanel.removeAll();
+        backgroundPanel.setLayout(new BorderLayout());
+        backgroundPanel.add(mainPanel);
+        backgroundPanel.revalidate();
+        backgroundPanel.repaint();
+    }
+    
 }
