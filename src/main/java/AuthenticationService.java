@@ -88,6 +88,7 @@ public class AuthenticationService {
     private static boolean verified = false; // ✅ boolean primitivo
     private static String Code;
     private static String LoginOuRegister;
+    public static String loggedUserName = "ADM";
     static boolean Logged = false;
     private static LocalDateTime CodeGeneratedTime;
     private static boolean rememberMe; // ✅ boolean primitivo
@@ -134,11 +135,16 @@ public class AuthenticationService {
      */
 
      public static void OpenChoseOptions() {
-        int userId = database.getUserId(emaill); 
-        if (!database.userHasInterests(userId)) { // ✅ boolean primitivo
-        InterfaceUI.ChooseOptions();
+        int userId = database.getUserId(emaill);
+        Main.print("DEBUG: userId = " + userId + ", email = " + emaill);
+        boolean hasInterests = database.userHasInterests(userId);
+        Main.print("DEBUG: userHasInterests = " + hasInterests);
+        
+        if (!hasInterests) {
+            InterfaceUI.ChooseOptions();
         } else {
-         Main.print("O user ja possui um interesse, prossiga a home.");
+            InterfaceUI.Home();
+            Main.print("O user ja possui um interesse, prossiga a home.");
         }
      }
 
@@ -148,6 +154,22 @@ public class AuthenticationService {
         String email = prefs.get("remember_email", null);
 
         if (email != null) {
+
+// 🔥 SE TIVER BANIDO → limpar tudo e forçar login
+if (database.isUsuarioBanido(getLoggedUsername())) {
+
+    long minutos = database.getBanRemainingMinutes(email);
+
+    prefs.remove("remember_email");
+    prefs.remove("remember_token");
+    ClearLogin();
+
+    Main.print("Usuário com token salvo está banido. Faltam " + minutos + " minutos.");
+
+    return false; // volta pra tela de login
+}
+
+
             String salt = database.getUserSalt(email);
 
             String Token = prefs.get("remember_token", null);
@@ -160,9 +182,13 @@ public class AuthenticationService {
             if (Criptografia.verifyPassword(Token, TokenArmazenado)) {
                 LoginOuRegister = "Login";
                 Logged = true;
+                // ✅ Gera username automaticamente baseado no email
+String username = email.split("@")[0];
+loggedUserName = username;
+
                 Vlr = true;
                 Main.print("O usuário possui token salvo.");
-                
+                emaill = email;
                 OpenChoseOptions();
             }
         }
@@ -239,6 +265,7 @@ public class AuthenticationService {
        // 2. CHAMA o método de persistência do banco de dados (que já criamos)
        // Passando o ID e a lista de interesses.
      database.saveUserInterests(userId, interests);
+     InterfaceUI.Home();
         }
 
     public static String ResetPassword(String password1, String password2) {
@@ -266,6 +293,42 @@ public class AuthenticationService {
      //
      return Result;
     };
+
+    public static String getLoggedEmail() {
+        return emaill;
+    }
+    
+    public static String getLoggedUsername() {
+        return loggedUserName;
+    }
+
+    public static void ClearLogin() {
+        // 1️⃣ Limpa variáveis internas
+        emaill = null;
+        senha = null;
+        loggedUserName = null;
+        Logged = false;
+        rememberMe = false;
+        TokenVerifiy = null;
+        LoginOuRegister = null;
+        verified = false;
+        Code = null;
+        CodeGeneratedTime = null;
+    
+        // 2️⃣ Remove dados salvos no Preferences (como "cookies")
+        prefs.remove("remember_email");
+        prefs.remove("remember_token");
+    
+        // 3️⃣ Força atualização do Preferences (opcional, mas garante persistência)
+        try {
+            prefs.flush();
+        } catch (Exception e) {
+            Main.print("Erro ao limpar preferences: " + e.getMessage());
+        }
+    
+        Main.print("Login limpo e usuário deslogado.");
+    }
+    
 
     public static String VerifyCode(String codigoDigitado) {
         if (codigoDigitado == null || codigoDigitado.isEmpty()) {
@@ -295,9 +358,16 @@ public class AuthenticationService {
             if ("Cadastro".equals(LoginOuRegister)) {
                 RegistroCriar(emaill, senha, senha);
                 Main.print("Usuário criado no registro.");
+                 // ✅ Gera username automaticamente baseado no email
+String username = emaill.split("@")[0];
+loggedUserName = username;
                 OpenChoseOptions();
             } else if ("Login".equals(LoginOuRegister)) {
                 Logged = true;
+                // ✅ Gera username automaticamente baseado no email
+String username = emaill.split("@")[0];
+loggedUserName = username;
+
                 Main.print("Usuário logado.");
                 OpenChoseOptions();
                 // ✅ CORRIGIDO: boolean primitivo
@@ -417,6 +487,26 @@ public class AuthenticationService {
             Result = "InvalidPassword";// verifica se o formato de senha é valido
         }
 
+System.err.println(database.isUsuarioBanido(email));
+
+String username = email.split("@")[0];
+loggedUserName = username;
+
+        // 🔥 VERIFICA SE O USUÁRIO ESTÁ BANIDO
+if (database.isUsuarioBanido(getLoggedUsername())) {
+
+
+    // limpa token/cookies
+    ClearLogin(); 
+    prefs.remove("remember_email");
+    prefs.remove("remember_token");
+
+    Result = "LoginBanned";
+
+
+}
+
+
         // Verifica se usuário existe, por padrão incorret para não saber se o email ou senha é incorreto (boas práticas)
         if (isEmailValido(email) && !database.userExists(email)) {
             Result = "Incorrect";
@@ -424,22 +514,30 @@ public class AuthenticationService {
         } else if (database.userExists(email)) {
             int Tentativas = database.getUserTrys(email);
             LocalDateTime ultima = database.getUltimaTentativa(email);
-
+        
             Main.print("Usuário existe.");
-            LocalDateTime desbloqueio = ultima.plusMinutes(30);
-            LocalDateTime agora = LocalDateTime.now();
-            minutosRestantes = java.time.Duration.between(agora, desbloqueio).toMinutes();
-
-            if (ultima.plusMinutes(30).isBefore(LocalDateTime.now())) {
-                database.resetarTentativas(email);
-                Tentativas = 5; // seta por padrão 5 tentativas após o tempo de segurança de 30 minutos
+        
+            if (ultima != null) {
+                LocalDateTime desbloqueio = ultima.plusMinutes(30);
+                LocalDateTime agora = LocalDateTime.now();
+                minutosRestantes = java.time.Duration.between(agora, desbloqueio).toMinutes();
+        
+                // Se já passou o tempo de bloqueio, reseta tentativas
+                if (desbloqueio.isBefore(agora)) {
+                    database.resetarTentativas(email);
+                    Tentativas = 5; // seta 5 tentativas após desbloqueio
+                }
+            } else {
+                // Se nunca houve tentativa, não está bloqueado
+                Tentativas = 5;
+                minutosRestantes = 0;
             }
-
+        
             if (Tentativas <= 0) {
-                Result = "LoginBlocked"; //Se o usuario realizou todas as tentativas, o bloqueia para evitar ataques de força  bruta
+                Result = "LoginBlocked"; // Bloqueia usuário se não tiver tentativas
             }
         }
-
+        
         // Se tudo válido
         // Essas validações evitam qualquer problema com SQL Injection ou ataques de força  bruta
         if (isSenhaSegura(password) && isEmailValido(email) && Result.equals("Nulo")) {
