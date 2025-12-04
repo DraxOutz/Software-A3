@@ -5,6 +5,12 @@ O **HexaWarden** é um sistema de autenticação seguro em Java, focado em prote
 
 ---
 
+## Observação
+
+Por ser um trabalho de faculdade e ter um prazo curto, eu precisei priorizar entregar o sistema funcionando de forma segura e completa.
+Reconheço que nem todas as competências de boas práticas ou padrões avançados de arquitetura foram aplicadas, mas foi uma decisão consciente, ou eu focava em deixar tudo altamente organizado como um programador experiente faria, ou eu priorizava garantir que todas as funcionalidades pedidas no projeto realmente funcionassem.
+Dado o tempo disponível, optei por entregar algo sólido, funcional e tecnicamente seguro, mesmo que não estivesse 100% refinado no aspecto estrutural.
+
 ## Funcionalidades Principais
 
 ### 1. Validação de credenciais
